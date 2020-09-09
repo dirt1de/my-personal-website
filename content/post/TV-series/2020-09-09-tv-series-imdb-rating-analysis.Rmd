@@ -22,6 +22,10 @@ projects: []
 ---
 
 ## Introduction
+```{r,echo=FALSE}
+knitr::include_graphics("/Users/xuxian/Documents/UCLA related/R/website/my-personal-website/content/post/TV-series/pic.jpeg")
+```
+
 In this project, we will analyze the data about TV series from 1990 to 2018 provided by the Economist. Hopefully, we could illustrate the relationship between different variables and provide the readers with insights about the TV series industry. 
 
 ## Data wranggling
