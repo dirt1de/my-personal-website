@@ -1,7 +1,7 @@
-name = "Academic"
+name = "Xuxin Zhang"
 license = "MIT"
 licenselink = "https://github.com/wowchemy/starter-academic/blob/master/LICENSE.md"
-description = "Use the website builder to personalize your academic resumé with widgets and deploy with one click! Fully customize your site with themes, plugins, and language packs."
+description = "Welcome to my farmland. Hope you can discover something that interests you!"
 homepage = "https://wowchemy.com"
 min_version = "0.73"
 tags = ["widgets",
@@ -39,8 +39,8 @@ features = ["page builder", "widgets", "themes", "search", "research publication
             "blog", "create courses", "talks", "events", "slides", "gallery", "contact form"]
 
 [author]
-  name = "George Cushen"
-  homepage = "https://georgecushen.com"
+  name = "Xuxin Zhang"
+
 
 # If porting an existing theme
 [original]
