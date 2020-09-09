@@ -1,5 +1,5 @@
 ---
-title: legendary pokemon
+title: Legendary pokemon classification
 author: Xuxin Zhang
 date: '2020-09-09'
 slug: legendary-pokemon
