@@ -1,5 +1,5 @@
 ---
-title: legendary pokemon
+title: Legendary pokemon classification
 author: Xuxin Zhang
 date: '2020-09-09'
 slug: legendary-pokemon
@@ -25,14 +25,14 @@ projects: []
 
 ## Introduction
 
-In this project, we will explore the pokemon data. The focus is to develope a machine learning model to predict whether a pokemon is legendary or not. If you have watched the Pokemon animes or played pokemon games, you will know that legendary pokemons are really powerful, rare, and hard (almost impossible) to get. In our project, we hope to discover other characteristics of legendary pokemons so that we could accurately predict if a given pokemon is legendary
+In this project, we will explore the pokemon data. The focus is to develope a machine learning model to predict whether a pokemon is legendary or not. If you have watched the Pokemon animes or played pokemon games, you will know that legendary pokemons are really powerful, rare, and hard (almost impossible) to get. In our project, we hope to discover other characteristics of legendary pokemons so that we could accurately predict if a given pokemon is legendary.
 
 ## Data wranggling
-```{r}
+```{r,warning=FALSE}
 library(tidyverse)
 library(tidymodels)
 
-pokemon <- read_csv("pokemon.csv")
+pokemon <- read_csv("/Users/xuxian/Documents/UCLA related/R/website/my-personal-website/content/post/legendar-pokemon/pokemon.csv")
 pokemon
 ```
 
@@ -197,7 +197,7 @@ tree_wf<-workflow()%>%add_recipe(pokemon_recipe)%>%add_model(tree_model)
 ```
 
 Now we are ready to apply the workflows to our bootstraps object.
-```{r}
+```{r,message=FALSE}
 glr_resample <- glr_wf%>%fit_resamples(resamples = pokemon_boot, control = control_resamples(save_pred = TRUE, verbose = TRUE)) 
 
 rf_resample <- rf_wf%>%fit_resamples(resamples = pokemon_boot, control = control_resamples(save_pred = TRUE, verbose = TRUE)) 
