@@ -1,14 +1,9 @@
 ---
-title: Gallery
-
-# View.
-#   1 = List
-#   2 = Compact
-#   3 = Card
-view: 2
-
-# Optional header image (relative to `static/media/` folder).
-header:
-  caption: ""
-  image: ""
+gallery_item:
+ - album: gallery
+   image: boards.jpg
+   caption: A caption
+ - album: gallery
+   image: https://raw.githubusercontent.com/gcushen/hugo-academic/master/images/theme-dark.png
+   caption: Another caption
 ---
