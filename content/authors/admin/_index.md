@@ -1,6 +1,7 @@
 ---
 # Display name
-title: Xuxin Zhang
+title: Xuxin Zhang  
+
 
 # Username (this should match the folder name)
 authors:
@@ -16,7 +17,7 @@ organizations:
   url: ""
 
 # Short bio (displayed in user profile at end of posts)
-bio: I am a wondering village boy who takes photos.
+bio: Just wondering village boy.
 
 
 # Social/Academic Networking
@@ -51,4 +52,4 @@ user_groups:
 - Researchers
 - Visitors
 ---
-Write something serious here. 
+I should have written something serious here, but since this website is still under construction, I have to postpone that. 

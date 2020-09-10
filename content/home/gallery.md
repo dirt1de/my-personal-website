@@ -10,7 +10,10 @@ weight = 70  # Order that this section will appear.
 title = "Gallery"
 subtitle = ""
 
+
+
 [content]
+
   # Page type to display. E.g. post, talk, or publication.
   page_type = "talk"
   
