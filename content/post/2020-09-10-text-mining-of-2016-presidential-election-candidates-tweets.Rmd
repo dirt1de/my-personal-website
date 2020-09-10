@@ -47,7 +47,7 @@ tweets_cleaned
 
 
 ## 2. Exploratory data analysis
-###2.1 Preliminary analysis
+### 2.1 Preliminary analysis
 Since we have got the cleaned dataset, we are now ready to do some preliminary data analysis. First, we count the number of tweets for both Trump and Clinton. From the summary below, we can see that the total number of tweets for both of them is not that different.
 ```{r}
 tweets_cleaned%>%count(handle)
@@ -92,7 +92,7 @@ ggplotly(tweets_cleaned %>% ggplot(aes(x = handle, y = favorite_count))+geom_box
   theme(legend.position = "top"))
 ```
 
-###2.2 Time span analysis
+### 2.2 Time span analysis
 In this section, we focus on how Trump's and Clinton's tweeting pattern change over time.
 
 The graph below shows how the total number of Clinton's and Trump's tweets changes.
