@@ -1,5 +1,5 @@
 ---
-title: The Office IMDb rating analysis
+title: IMDb rating analysis of "The Office"
 author: Xuxin Zhang
 date: '2020-09-13'
 slug: the-office-imdb-rating-analysis
