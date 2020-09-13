@@ -25,7 +25,7 @@ projects: []
 
 In this project, we would conduct data analysis on TV series "The Office" which is one of my favorite TV series of all time. Trust me, you either hate it or you would really love it. Two datasets would be focused on: one containing the rating of each episode of the 9 seasons; the other data contains 
 
-![](/media/theoffice.png)
+![](/media/theoffice.jpg)
 
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
