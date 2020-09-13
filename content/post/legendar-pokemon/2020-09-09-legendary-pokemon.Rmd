@@ -27,6 +27,8 @@ projects: []
 
 In this project, we will explore the pokemon data. The focus is to develope a machine learning model to predict whether a pokemon is legendary or not. If you have watched the Pokemon animes or played pokemon games, you will know that legendary pokemons are really powerful, rare, and hard (almost impossible) to get. In our project, we hope to discover other characteristics of legendary pokemons so that we could accurately predict if a given pokemon is legendary.
 
+![](/media/Pokemon.jpg)
+
 ## Data wranggling
 ```{r,warning=FALSE}
 library(tidyverse)

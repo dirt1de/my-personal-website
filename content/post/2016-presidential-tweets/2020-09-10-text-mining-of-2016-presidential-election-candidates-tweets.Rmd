@@ -13,7 +13,7 @@ subtitle: ''
 summary: ''
 authors: []
 lastmod: '2020-09-10T15:17:34+08:00'
-featured: no
+featured: yes
 image:
   caption: ''
   focal_point: ''
@@ -22,7 +22,10 @@ projects: []
 ---
 
 
+
 In this project, we will analyze the tweeter data of Donald Trump and Hillary Clinton. The data contains detailed information about their tweets from January 2016 to Nov 29 2016 (for Clinton, the data spans from April 14 2016 to Nov 29 2016). We hope to use this data to find the tweeting pattern of Trump and Clinton such as what are the words they usually use, what are the time periods that they write most of their tweets, etc. To answer these questions, we will need to take the approach of text mining. Hopefully, at the end of this project, we could find out some hints that predict Trump would finally win the election.
+
+![](/media/theoffice.jpg)
 
 ## 1. Dealing with the data
 First, we need to import and clean our data. To simplify the analysis, we would only focus on the tweets written in English only. 
