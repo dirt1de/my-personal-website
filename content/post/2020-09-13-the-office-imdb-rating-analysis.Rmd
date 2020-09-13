@@ -22,10 +22,20 @@ image:
 projects: []
 ---
 
-
-In this project, we would conduct data analysis on TV series "The Office" which is one of my favorite TV series of all time. Trust me, you either hate it or you would really love it. Two datasets would be focused on: one containing the rating of each episode of the 9 seasons; the other data contains 
+## 1. Introduction
+In this project, we would conduct data analysis on TV series "The Office" which is one of my favorite TV series of all time. Trust me, you either hate it or you would really love it. 
 
 ![](/media/theoffice.jpg)
+
+Two datasets would be used for our analysis: one contains the rating for each episode of the 9 seasons; the other data contains the writers and directors of each episode. In addition, it includes lines spoken by each character in the TV series. 
+
+This project is broken down into three parts. The first part focuses on the episodes; the second part focuses on the the different characters; in the last part, we will do a lasso regression on the data we have to find out what are the factors that influence the rating of each episode. 
+
+
+
+## 2. Preliminary data analysis
+### 2.1 Season and episode analysis
+First, we need to import our data. We can take a look at the two datasets we have.
 
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -33,17 +43,22 @@ library(tidytext)
 library(schrute)
 library(ggridges)
 library(plotly)
+library(DT)
 library(tidymodels)
 
-theme_set(theme_light())
+theme_set(theme_classic())
 
 office_script<-schrute::theoffice
 
 ratings_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-17/office_ratings.csv")
+
+office_script%>%head(10)
+
+ratings_raw %>%head(10)
+
 ```
 
-## 2. Preliminary data analysis
-### 2.1 Season and episode analysis
+As I mentioned in the introduction section, in order to study the season and episodes of "The Office", the first thing we can do is to visualize the change of rating of each episode across time. With the help of the following graph, we see a clear pattern that the rating arrives the peak around season four and five. Then the rating starts to decline and hit the bottom at season 8. Eventually, with the airing of the finale, the rating starts to climb again. This pattern does go along with my personal watching experience. The show seems to lose some of its spirit after Michael left Scranton. 
 
 ```{r}
 ratings_raw%>%mutate(total_ep = row_number())%>%
@@ -52,10 +67,10 @@ ratings_raw%>%mutate(total_ep = row_number())%>%
   geom_path(aes(color = as.factor(season)))+
   geom_text(aes(label= title),hjust = 1,check_overlap = TRUE)+
   theme(legend.position = "null")+expand_limits(x = -20)+
-  labs(x = "Episode number", y = "IMDb rating", title = "How the rating of each epsiode changes over time")+geom_smooth()
+  labs(x = "Episode number", y = "IMDb rating", title = "How the rating of each episode changes over time")+geom_smooth()
 ```
 
-From this graph, we see that the average rating first goes up, then goes down. 
+We can take a step further using  a ridge plot to show how the rating changes for each season. From this graph, we see that the average rating first goes up, then it goes down.
 
 ```{r}
 ratings_raw%>%
@@ -68,7 +83,7 @@ ratings_raw%>%
   labs(x = "IMDb rating", y = "Season number", title = "IMDb rating distribution for each season")
 ```
 
-Now we can conduct a sentiment analysis for each of episode. 
+Since we have all the lines spoken by the characters, we can conduct a sentiment analysis for each of episode. 
 ```{r}
 episode_sent<-office_script%>%
   select(season,episode, episode_name,character,text)%>%
@@ -87,6 +102,7 @@ episode_sent%>%
   
 ```
 
+Based on the graph above, we see that the sentiment level gradually descreases, then it increases at the beginning of season 5. If we look closer, we will find that the sentiment level is largely influenced by the episodes with high sentimental level, and this is reflected by the ridge plot below. 
 
 ```{r}
 episode_sent%>%
@@ -101,6 +117,10 @@ episode_sent%>%
 
 Then a natural question to ask is that if there is a relationship between the rating and sentiment level. 
 
+To do so, we will plot the rating of each episode against the corresponding sentiment level, and here is what we get. By adding a regression line, we notice that the relationship between these two factors is with a "W" shape. This means that the rating is sensitive to extreme sentiment level: only if the sentiment level is extremely high or low would the rating be affected. 
+
+Note that there is a small peak in rating around sentiment level of 50. This peak means that as the sentiment level increases gradually, the rating would increase accordingly. However, once a threshold is meet, the rating would actually begin to decrease.
+
 ```{r,warning=FALSE}
 library(ggrepel)
 ratings_raw%>%mutate(total_ep = row_number())%>%
@@ -110,25 +130,25 @@ ratings_raw%>%mutate(total_ep = row_number())%>%
   geom_smooth()+labs(x = "Sentiment level", y = "IMDb rating", title = "The relationship between the sentiment level and the IMDb rating of an episode", color = "Season")
 ```
 
-```{r}
-ratings_raw%>%mutate(total_ep = row_number())%>%
-  left_join(episode_sent)%>%
-  ggplot(aes(x = sentiment, y = imdb_rating,color = as.factor(season) ))+
-  geom_point(show.legend = FALSE)+geom_smooth()+facet_wrap(~season)+labs(x = "Sentiment level", y = "IMDb rating", title = "The relationship between the sentiment level and the IMDb rating of an episode")+theme(legend.position = "null")
-```
 
 ### 2.2 Character analysis
+Now we can begin our analysis on the characters of the TV series. 
 
-Based on the follow graph, we can see that Michael, Jim, Dwight, and Pam take the top 4 people with the most lines. The first place is later overthrowned by Andy and then later finally by Dwight. 
+The following graph shows the top 10 people with the most lines in each of the 9 seasons. Based on it, we can see that Michael, Jim, Dwight, and Pam are top 4 people with the most lines. The first place is later overthrowned by Andy and then finally by Dwight. 
 
+(*Spoil Alert*: The sharp drop of Michael's line is because he left Scranton after season 7. You will understand why Andy and Dwight become the persons with most lines after you watch the whole TV series.) 
+
+
+From this single graph, we could tell who are the main characters of the whole series. 
 ```{r}
 library(tidytext)
 office_script%>%count(season = as.factor(season), character)%>%
   group_by(season)%>%top_n(10)%>%
   ggplot(aes(x = n, y = reorder_within(character, n, season), fill = character))+
-  geom_col()+scale_y_reordered()+facet_wrap(~season,scales = "free_y")+theme(legend.position = "null")
+  geom_col()+scale_y_reordered()+facet_wrap(~season,scales = "free_y")+theme(legend.position = "null")+labs(x = "Number of lines", y = "Character name", title = "Top 10 people with the most lines in each season")
 ```
 
+I have creted an interactive line plot to show the changing number of lines for each character more straightforwardly. 
 
 ```{r}
 top_character<-office_script%>%count(character,sort = TRUE)%>%top_n(12)%>%pull(character)
@@ -136,21 +156,21 @@ top_character<-office_script%>%count(character,sort = TRUE)%>%top_n(12)%>%pull(c
 ggplotly(office_script%>%count(season, character)%>%
     filter(character%in%top_character)%>%
     ggplot(aes(x = season, y = n, color = character))+geom_point()+
-    geom_path()+scale_y_log10()+scale_x_continuous(breaks = 1:9))
+    geom_path()+scale_y_log10()+scale_x_continuous(breaks = 1:9)+labs(x = "Season", y = "Number of lines", title = "Changing number of lines for each character"))
 ```
 
+Besides knowing how many lines each characters in different seasons, we can actualy find out what are the words uniquely spoken by the characters with the help of a text mining technique: tf-idf. Based on my familiarity with the tv series, these words are in fact unique to each of the characters.
 
-Text mining 
 ```{r}
-
 office_script%>%
   select(season,episode, episode_name,character,text)%>%
   unnest_tokens(word,text)%>%anti_join(stop_words)%>%
   count(character,word)%>%filter(character%in%top_character)%>%
   bind_tf_idf(word,character,n)%>%
-  group_by(character)%>%top_n(10)%>%ggplot(aes(x = tf_idf, y = reorder_within(word, tf_idf, character), fill = character))+geom_col(show.legend = FALSE)+facet_wrap(~character, scales = "free_y")+scale_y_reordered()
+  group_by(character)%>%top_n(10)%>%ggplot(aes(x = tf_idf, y = reorder_within(word, tf_idf, character), fill = character))+geom_col(show.legend = FALSE)+facet_wrap(~character, scales = "free_y")+scale_y_reordered()+labs(y = "Words", title = "Unique words spoken by each characters")
 ```
 
+In addition, we can study the sentiment level of each character based on the lines they have. One should note that since differennt characters have varying number of lines, we have to take this fact into consideration when calculating the characters' sentiment level. 
 
 ```{r}
 character_season_line<-office_script%>%count(season, character)%>%
@@ -162,11 +182,13 @@ ggplotly(office_script%>%
   inner_join(get_sentiments("afinn"))%>%group_by(season,character)%>%
   summarise(sentiment = sum(value))%>%filter(character%in%top_character)%>%
   left_join(character_season_line)%>%mutate(av_sent = sentiment/n)%>%
-  ggplot(aes(x = season, y = av_sent, color = character))+geom_point()+geom_path())
+  ggplot(aes(x = season, y = av_sent, color = character))+geom_point()+geom_path()+labs(x = "Season", y = "Average sentiment level", title = "Average sentiment level of each characters"))
 ```
 
-Modeling
+From the graph above, we can see that Angela and Dwight are the two persons with the most negative sentiment level in the first 5 seasons, which is true since these two are pretty mean to others.
 
+## 3. Lasso regression
+Before we proceed to apply lasso regression to our data, we need to further clean the data we have. 
 ```{r}
 remove_regex <- "[:punct:]|[:digit:]|parts |part |the |and"
 
@@ -210,6 +232,7 @@ creators <- office_info%>%distinct(episode_name,director,writer)%>%
 creators
 ```
 
+With the help of the two chuncks of code above, we now have two new datasets at hand:`actors` and `creators`. The `actors` data shows the lines each characters have in a single episode, and the `creators` shows the writers and directors for each episode. Next, we join all the datasets we have into a single one. 
 
 ```{r}
 rating_clean <- ratings_raw%>%transmute(season, episode,episode_name = title, rating = imdb_rating)%>%
@@ -225,6 +248,9 @@ staff<-rating_clean%>%
 staff
 ```
 
+Now we are ready to build a machine learning model to study the dataset `staff` using the package `tidymodel`.
+
+First we split our data into a training and testing one. In order to later tune the lasso regression model, we create a bootstraps object `staff_boot`.
 ```{r}
 set.seed(1234)
 staff_split<-initial_split(staff,strata = season)
@@ -234,6 +260,8 @@ staff_test <- testing(staff_split)
 set.seed(123)
 staff_boot<-bootstraps(staff_train, strata = season)
 ```
+
+With the help of `recipe` function, we could do some feature engineering to preprocess the data.
 
 ```{r}
 staff_recipe<-recipe(rating~., data = staff_train)%>%
@@ -245,7 +273,7 @@ staff_recipe<-recipe(rating~., data = staff_train)%>%
 prep(staff_recipe)%>%juice()
 ```
 
-
+Then we set up our first rough machine learning model. Based on the result, we see that with the penal equals to 0.1, Jim, Michael, Greg Daniels, and Jan are the most important factors in deciding the rating of a single episode.
 ```{r}
 library(vip)
 set.seed(2345)
@@ -258,7 +286,7 @@ staff_wf<-workflow()%>%
   add_model(lasso_model)
 
 staff_wf%>%fit(staff_train)%>%pull_workflow_fit()%>%
-  tidy()
+  tidy()%>%arrange(desc(estimate))
 ```
 
 
@@ -273,27 +301,33 @@ tune_grid<-tune_grid(workflow()%>%add_recipe(staff_recipe)%>%add_model(tune_mode
           grid = lambda_grid)
 ```
 
+Now we have two evaluation criteria (rmse and rsq) for the penalties. 
 ```{r}
 tune_grid%>%collect_metrics()
 ```
 
+We can visualize the two metrics in the following way:
 ```{r}
 tune_grid%>%collect_metrics()%>%
     ggplot(aes(x = penalty, y = mean, color = .metric))+
     geom_point()+
     geom_line()+facet_wrap(~.metric,scales = "free",ncol = 1)+scale_x_log10()
 ```
+
+With the following code, we are able to select the best value for the penalty.
 ```{r}
 best_penalty<-tune_grid%>%select_best("rmse",maximize = FALSE)
 best_penalty
 ```
 
+With the best penalty at hand, we are ready to update our first rough model with this new parameter.
 ```{r}
 final_lasso<-finalize_workflow(workflow()%>%add_recipe(staff_recipe)%>%add_model(tune_model),
                best_penalty)
 final_lasso
 ```
 
+Finally, we can use the following code to visualize the importance of each factors. We can see that Greg Daniels, Jim, episode, and Michael are the top 4 factors with greatest importance. That is to say, episodes directed by Greg Daniels and with more lines for Jim and Michael would tend to have higher rating. However, we also notice that Kelly, season, Erin, and Randall Einhorn have the strongest negative influence on the rating. I'm a little surprised at the result since Erin is my favorite characters in the TV series. 
 ```{r}
 final_lasso%>%fit(staff_train)%>%pull_workflow_fit()%>%vi(lamda = best_penalty$penalty)%>%
   mutate(Importance = case_when(Sign == "POS"~Importance,
@@ -304,6 +338,7 @@ final_lasso%>%fit(staff_train)%>%pull_workflow_fit()%>%vi(lamda = best_penalty$p
 
 ```
 
+Finally, we can fit our data to the testing data we created earlier, and here is the fitting result.
 ```{r}
 final_lasso%>%last_fit(staff_split)%>%collect_metrics()
 ```
