@@ -21,6 +21,7 @@ image:
 projects: []
 ---
 ## 1. Introduction
+https://www.kaggle.com/mansimeena/facebook-ad-campaigns-analysis-sales-prediction/data
 
 ## 2. Preliminary data analysis
 
@@ -104,51 +105,77 @@ campus%>%
   labs(x = "Scores at high school", y = "Density", title = "Distribution of scores for applicants with different high school specialization")
 ```
 
-After finishing the analysis of the perf
+After finishing the analysis of the applicants' performance in their high school, we then turn to their performance in college. As we can see, there still exists a diverge between placed applicants' scores and unplaced applicants' scores, which means the scores at college is also an important factor to consider during the recruiting process. 
 
 ```{r}
 campus%>%
   ggplot(aes(x = college_score, fill = status))+
   geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+
   geom_density(alpha = 0.6)+scale_fill_brewer(palette = "Paired")+
-  labs(x = "College school score", y = "Density", title = "Distribution of scores when the applicants were in high school")
+  labs(x = "Scores at college", y = "Density", title = "Distribution of scores when the applicants were in college")
 ```
 
-
+Here, we see that for students studying other majors, there is no significant difference between the scores of placed and unplaced students. On the contrarory, we see that the diveregnce occurs in both Comm&Mgmt and Sci&Tech majors. 
 ```{r}
-campus%>%ggplot(aes(x = college_score, fill = status))+geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+geom_density(alpha = 0.6)+scale_fill_brewer(palette = "Paired")+facet_wrap(~college_major)
+campus%>%
+  ggplot(aes(x = college_score, fill = status))+
+  geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+
+  geom_density(alpha = 0.6)+
+  scale_fill_brewer(palette = "Paired")+facet_wrap(~college_major)+
+  labs(x = "Scores at college", y = "Density", title = "Distribution of scores for college students with different majors")
 ```
+
+Finally, we will analyze their MBA performance. Quite surprisingly, there are only two options for their MBA specialization: Mk&Fin and Mk&HR. Furthermore, we see that among those who specialized in Mk&Fin, there is a larger proportion of people who get placed than those specialized in Mk&HR, which means the company has a greater demand for people specialized in Mk&Fin. 
 
 ```{r}
 ggplotly(campus%>%
   count(mba_special,status)%>%
   ggplot(aes(x = mba_special, y = n, fill = status))+
-  geom_col(position = "fill")+scale_fill_brewer(palette = "Paired"))
+  geom_col(position = "fill")+scale_fill_brewer(palette = "Paired")+
+  labs(x = "MBA specialization", y = "Proportion", title = "The proportion of applicants being placed in two MBA specialization"))
 ```
 
+Based on the following graph, we see that in the more demanded specialization area of Mk&Fin, the average MBA scores of placed applicants are higher. However, for the the other specialization, the placed applicants don't show any advantage in their scores. That is to say, the MBA score is a determining factor for recruitment only if the applicant is specialized in Mk&Fin. If the applicant specializes in Mk&HR, then the scores may not be as importnant. 
 
 ```{r}
 campus%>%
   ggplot(aes(x = mba_special, y = mba_score, fill = status))+
-  geom_boxplot(alpha = 0.7)+scale_fill_brewer(palette = "Paired")
+  geom_boxplot(alpha = 0.7)+scale_fill_brewer(palette = "Paired")+
+  labs(x = "MBA specialization", y = "MBA scores", title = "The score distribution in two MBA specialization")
 ```
 
+We can take a step further to see if the MBA scores would affect the salary for the placed applicants.
+
+Depends on the graph below, we see that for people who have previous working experience, between the MBA scores of 55 and 67, they tend to have a higher salary than those who have no working experience. The situation changes when the scores for applicants are greater than 67. This naturally leads us to ask the next question: does people with previous working experience generally have higher salary level?
 
 ```{r}
-campus%>%ggplot(aes(x = mba_score, y = salary, color = workex))+geom_point(alpha = 0.6)+geom_smooth(se = FALSE)+scale_color_brewer(palette = "Paired")
+ggplotly(campus%>%
+           ggplot(aes(x = mba_score, y = salary, color = workex))+
+           geom_point(alpha = 0.6)+
+           geom_smooth(se = FALSE)+
+           scale_color_brewer(palette = "Paired")+scale_y_log10()+
+           labs(x = "MBA score", y = "Salary", title = "The relationship between MBA scores and salary"))
 ```
+
+The answer is revealed in the following graph. We see that the average salary is pretty much the same for both groups. The only difference is that there are more outlier points for the group with working experience. That is to say, generally, salary doesn't depend on previous working experience. However, if you do have working experience, it is more likely for you to get unusually high salary.
+
 ```{r}
-campus%>%
+ggplotly(campus%>%
   ggplot(aes(x = workex, y = salary, fill = workex))+geom_boxplot(alpha = 0.7)+
   scale_y_log10()+
-  scale_fill_brewer(palette = "Paired")
+  scale_fill_brewer(palette = "Paired")+
+  labs(x = "Working experience", y = "Salary", title = "The salary distribution in regard of working experience"))
 ```
 
-From this graph, we could see that for those people who got placed, their salary level doesn't necessarily depend on previous working experience. However, we still notice that some of the people who have previous working experience do have a much higher salary than those who have no previous experience. 
+After all these analysis, we are finally ready to build our model.
 
+## 3. Building the machine learning model
+First we will clean our data once more.
 ```{r}
 campus_df<-campus%>%select(-sl_no)%>%mutate_if(is.character, factor)
 ```
+
+
 
 ```{r}
 set.seed(123)
