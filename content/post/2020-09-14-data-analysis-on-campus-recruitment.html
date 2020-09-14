@@ -1,0 +1,269 @@
+---
+title: Data analysis on campus recruitment
+author: Xuxin Zhang
+date: '2020-09-14'
+slug: data-analysis-on-campus-recruitment
+categories:
+  - R project
+tags:
+  - tidymodel
+  - machine learning
+  - data visualization
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-09-14T12:54:08+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+<script src="/rmarkdown-libs/htmlwidgets/htmlwidgets.js"></script>
+<script src="/rmarkdown-libs/plotly-binding/plotly.js"></script>
+<script src="/rmarkdown-libs/typedarray/typedarray.min.js"></script>
+<script src="/rmarkdown-libs/jquery/jquery.min.js"></script>
+<link href="/rmarkdown-libs/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/crosstalk/js/crosstalk.min.js"></script>
+<link href="/rmarkdown-libs/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/plotly-main/plotly-latest.min.js"></script>
+
+
+<div id="introduction" class="section level2">
+<h2>1. Introduction</h2>
+</div>
+<div id="preliminary-data-analysis" class="section level2">
+<h2>2. Preliminary data analysis</h2>
+<p>First, we need to import our data and loading the packages we are going to use.</p>
+<pre class="r"><code>library(tidyverse)
+library(tidymodels)
+library(plotly)
+campus &lt;- read_csv(&quot;/Users/xuxian/Documents/UCLA related/R/Projects/tidymodel/campus recruit/campus recruit.csv&quot;)
+theme_set(theme_light())</code></pre>
+<p>We can take a look at the data we have. Notice that the names of the columns could be really confusing, so we need to change them into clearer names.</p>
+<pre class="r"><code>campus</code></pre>
+<pre><code>## # A tibble: 215 x 15
+##    sl_no gender ssc_p ssc_b hsc_p hsc_b hsc_s degree_p degree_t workex etest_p
+##    &lt;dbl&gt; &lt;chr&gt;  &lt;dbl&gt; &lt;chr&gt; &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt;    &lt;dbl&gt; &lt;chr&gt;    &lt;chr&gt;    &lt;dbl&gt;
+##  1     1 M       67   Othe…  91   Othe… Comm…     58   Sci&amp;Tech No        55  
+##  2     2 M       79.3 Cent…  78.3 Othe… Scie…     77.5 Sci&amp;Tech Yes       86.5
+##  3     3 M       65   Cent…  68   Cent… Arts      64   Comm&amp;Mg… No        75  
+##  4     4 M       56   Cent…  52   Cent… Scie…     52   Sci&amp;Tech No        66  
+##  5     5 M       85.8 Cent…  73.6 Cent… Comm…     73.3 Comm&amp;Mg… No        96.8
+##  6     6 M       55   Othe…  49.8 Othe… Scie…     67.2 Sci&amp;Tech Yes       55  
+##  7     7 F       46   Othe…  49.2 Othe… Comm…     79   Comm&amp;Mg… No        74.3
+##  8     8 M       82   Cent…  64   Cent… Scie…     66   Sci&amp;Tech Yes       67  
+##  9     9 M       73   Cent…  79   Cent… Comm…     72   Comm&amp;Mg… No        91.3
+## 10    10 M       58   Cent…  70   Cent… Comm…     61   Comm&amp;Mg… No        54  
+## # … with 205 more rows, and 4 more variables: specialisation &lt;chr&gt;,
+## #   mba_p &lt;dbl&gt;, status &lt;chr&gt;, salary &lt;dbl&gt;</code></pre>
+<pre class="r"><code>campus&lt;-campus%&gt;%transmute(sl_no,gender,
+                   middle_school_score = ssc_p,
+                   middle_school_board = ssc_b,
+                   high_school_score = hsc_p, 
+                   high_school_board = hsc_b, 
+                   high_school_special = hsc_s, 
+                   college_score = degree_p, 
+                   college_major = degree_t, 
+                   workex, employ_test = etest_p,
+                   mba_special = specialisation,
+                   mba_score = mba_p, status,
+                   salary)
+campus</code></pre>
+<pre><code>## # A tibble: 215 x 15
+##    sl_no gender middle_school_s… middle_school_b… high_school_sco…
+##    &lt;dbl&gt; &lt;chr&gt;             &lt;dbl&gt; &lt;chr&gt;                       &lt;dbl&gt;
+##  1     1 M                  67   Others                       91  
+##  2     2 M                  79.3 Central                      78.3
+##  3     3 M                  65   Central                      68  
+##  4     4 M                  56   Central                      52  
+##  5     5 M                  85.8 Central                      73.6
+##  6     6 M                  55   Others                       49.8
+##  7     7 F                  46   Others                       49.2
+##  8     8 M                  82   Central                      64  
+##  9     9 M                  73   Central                      79  
+## 10    10 M                  58   Central                      70  
+## # … with 205 more rows, and 10 more variables: high_school_board &lt;chr&gt;,
+## #   high_school_special &lt;chr&gt;, college_score &lt;dbl&gt;, college_major &lt;chr&gt;,
+## #   workex &lt;chr&gt;, employ_test &lt;dbl&gt;, mba_special &lt;chr&gt;, mba_score &lt;dbl&gt;,
+## #   status &lt;chr&gt;, salary &lt;dbl&gt;</code></pre>
+<p>Since our goal in this project is to create a model to predict whether a peron is placed or not, we can first take a look at how many people are placed in this data set.</p>
+<pre class="r"><code>campus%&gt;%count(status)</code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   status         n
+##   &lt;chr&gt;      &lt;int&gt;
+## 1 Not Placed    67
+## 2 Placed       148</code></pre>
+<p>To study which factors can influence the placing status, we first start from analyzing how they perform in their middle school.</p>
+<pre class="r"><code>campus%&gt;%ggplot(aes(x = middle_school_score, fill = status))+
+    geom_histogram(aes(y = ..density..), alpha = 0.5, color = &quot;white&quot;)+
+    geom_density(alpha = 0.6)+scale_fill_brewer(palette = &quot;Paired&quot;)+
+    labs(x = &quot;Scores at middle school&quot;, y = &quot;Density&quot;, title = &quot;Distribution of scores when the applicants were in middle school&quot;)</code></pre>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-5-1.png" width="672" />
+In this visualization, we see that generally the applicants who receive the offer (placed) have a higher score in middle school.</p>
+<p>Next, we turn to the type of board of education for these applicants.</p>
+<pre class="r"><code>library(ggplot2)
+campus%&gt;%
+    ggplot(aes(x = middle_school_score, fill = status))+
+    geom_histogram(aes(y = ..density..), alpha = 0.5, color = &quot;white&quot;)+
+    geom_density(alpha = 0.6)+
+    scale_fill_brewer(palette = &quot;Paired&quot;)+facet_wrap(~middle_school_board,ncol = 1)+
+    labs(x = &quot;Scores at middle school&quot;, y = &quot;Density&quot;, title = &quot;Distribution of scores when the applicants were in middle school&quot;)</code></pre>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>Based on this graph, we could see that the scores for the people with central board of education diverges less compared to the those of people with other boards. This pattern is actually a reflection of the distribution of educational resources among middle schools: the reason why the scores of applicants studying in central board of education don’t differ that much is becauses they receive almost equal amount of educational resources. The difference is mostly caused by the the individual difference among the applicants; however, for schools with other types of board of education, in addition to the individual difference among the students, educational resources also play an important role in determining the scores of the students. For example, some schools may have a better team of teachers than the others. Gradually, these difference of educational resources would inevitably lead to the diverge of students performance.</p>
+<p>Then we would proceed to their high schools. Again, we analyze the distribution of their scores for placed and unplaced applicants. From the following graph, we see the high school scores of unplaced applicants are generally lower than those of placed applicants, which means the high schools score is another important factor.</p>
+<pre class="r"><code>campus%&gt;%
+  ggplot(aes(x = high_school_score, fill = status))+
+  geom_histogram(aes(y = ..density..), alpha = 0.5, color = &quot;white&quot;)+
+  geom_density(alpha = 0.6)+scale_fill_brewer(palette = &quot;Paired&quot;)+
+  labs(x = &quot;Scores at high school&quot;, y = &quot;Density&quot;, title = &quot;Distribution of scores when the applicants were in high school&quot;)</code></pre>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>We can exploit more information by adding another variable to our plot above: <code>high school specialization</code>. From this graph, we can see two unusual spikes in the density for placed applicants specialized in Arts. My guess for this phenomenon is that Arts specialization is not bonus point in the recruitment process, so the applicants specialized in Arts during their high schools must be really excellent so that they could be considered by the recruiters.</p>
+<pre class="r"><code>campus%&gt;%
+  ggplot(aes(x = high_school_score, fill = status))+
+  geom_histogram(aes(y = ..density..), alpha = 0.5, color = &quot;white&quot;)+
+  geom_density(alpha = 0.6)+
+  scale_fill_brewer(palette = &quot;Paired&quot;)+facet_wrap(~high_school_special)+
+  labs(x = &quot;Scores at high school&quot;, y = &quot;Density&quot;, title = &quot;Distribution of scores for applicants with different high school specialization&quot;)</code></pre>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>After finishing the analysis of the perf</p>
+<pre class="r"><code>campus%&gt;%
+  ggplot(aes(x = college_score, fill = status))+
+  geom_histogram(aes(y = ..density..), alpha = 0.5, color = &quot;white&quot;)+
+  geom_density(alpha = 0.6)+scale_fill_brewer(palette = &quot;Paired&quot;)+
+  labs(x = &quot;College school score&quot;, y = &quot;Density&quot;, title = &quot;Distribution of scores when the applicants were in high school&quot;)</code></pre>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<pre class="r"><code>campus%&gt;%ggplot(aes(x = college_score, fill = status))+geom_histogram(aes(y = ..density..), alpha = 0.5, color = &quot;white&quot;)+geom_density(alpha = 0.6)+scale_fill_brewer(palette = &quot;Paired&quot;)+facet_wrap(~college_major)</code></pre>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<pre class="r"><code>ggplotly(campus%&gt;%
+  count(mba_special,status)%&gt;%
+  ggplot(aes(x = mba_special, y = n, fill = status))+
+  geom_col(position = &quot;fill&quot;)+scale_fill_brewer(palette = &quot;Paired&quot;))</code></pre>
+<div id="htmlwidget-1" style="width:672px;height:480px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"data":[{"orientation":"v","width":[0.9,0.9],"base":[0.791666666666667,0.557894736842105],"x":[1,2],"y":[0.208333333333333,0.442105263157895],"text":["mba_special: Mkt&Fin<br />n: 25<br />status: Not Placed","mba_special: Mkt&HR<br />n: 42<br />status: Not Placed"],"type":"bar","marker":{"autocolorscale":false,"color":"rgba(166,206,227,1)","line":{"width":1.88976377952756,"color":"transparent"}},"name":"Not Placed","legendgroup":"Not Placed","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"orientation":"v","width":[0.9,0.9],"base":[0,0],"x":[1,2],"y":[0.791666666666667,0.557894736842105],"text":["mba_special: Mkt&Fin<br />n: 95<br />status: Placed","mba_special: Mkt&HR<br />n: 53<br />status: Placed"],"type":"bar","marker":{"autocolorscale":false,"color":"rgba(31,120,180,1)","line":{"width":1.88976377952756,"color":"transparent"}},"name":"Placed","legendgroup":"Placed","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":26.2283105022831,"r":7.30593607305936,"b":40.1826484018265,"l":48.9497716894977},"plot_bgcolor":"rgba(255,255,255,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[0.4,2.6],"tickmode":"array","ticktext":["Mkt&Fin","Mkt&HR"],"tickvals":[1,2],"categoryorder":"array","categoryarray":["Mkt&Fin","Mkt&HR"],"nticks":null,"ticks":"outside","tickcolor":"rgba(179,179,179,1)","ticklen":3.65296803652968,"tickwidth":0.33208800332088,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.689497716895},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(222,222,222,1)","gridwidth":0.33208800332088,"zeroline":false,"anchor":"y","title":{"text":"mba_special","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-0.05,1.05],"tickmode":"array","ticktext":["0.00","0.25","0.50","0.75","1.00"],"tickvals":[0,0.25,0.5,0.75,1],"categoryorder":"array","categoryarray":["0.00","0.25","0.50","0.75","1.00"],"nticks":null,"ticks":"outside","tickcolor":"rgba(179,179,179,1)","ticklen":3.65296803652968,"tickwidth":0.33208800332088,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.689497716895},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(222,222,222,1)","gridwidth":0.33208800332088,"zeroline":false,"anchor":"x","title":{"text":"n","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":"transparent","line":{"color":"rgba(179,179,179,1)","width":0.66417600664176,"linetype":"solid"},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.88976377952756,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.689497716895},"y":0.913385826771654},"annotations":[{"text":"status","x":1.02,"y":1,"showarrow":false,"ax":0,"ay":0,"font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187},"xref":"paper","yref":"paper","textangle":-0,"xanchor":"left","yanchor":"bottom","legendTitle":true}],"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","showSendToCloud":false},"source":"A","attrs":{"6d3672e6bd6":{"x":{},"y":{},"fill":{},"type":"bar"}},"cur_data":"6d3672e6bd6","visdat":{"6d3672e6bd6":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>campus%&gt;%
+  ggplot(aes(x = mba_special, y = mba_score, fill = status))+
+  geom_boxplot(alpha = 0.7)+scale_fill_brewer(palette = &quot;Paired&quot;)</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<pre class="r"><code>campus%&gt;%ggplot(aes(x = mba_score, y = salary, color = workex))+geom_point(alpha = 0.6)+geom_smooth(se = FALSE)+scale_color_brewer(palette = &quot;Paired&quot;)</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<pre><code>## Warning: Removed 67 rows containing non-finite values (stat_smooth).</code></pre>
+<pre><code>## Warning: Removed 67 rows containing missing values (geom_point).</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<pre class="r"><code>campus%&gt;%
+  ggplot(aes(x = workex, y = salary, fill = workex))+geom_boxplot(alpha = 0.7)+
+  scale_y_log10()+
+  scale_fill_brewer(palette = &quot;Paired&quot;)</code></pre>
+<pre><code>## Warning: Removed 67 rows containing non-finite values (stat_boxplot).</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<p>From this graph, we could see that for those people who got placed, their salary level doesn’t necessarily depend on previous working experience. However, we still notice that some of the people who have previous working experience do have a much higher salary than those who have no previous experience.</p>
+<pre class="r"><code>campus_df&lt;-campus%&gt;%select(-sl_no)%&gt;%mutate_if(is.character, factor)</code></pre>
+<pre class="r"><code>set.seed(123)
+campus_split &lt;- initial_split(campus_df)
+
+campus_train &lt;- training(campus_split)
+campus_test &lt;- testing(campus_split)
+
+campus_boot &lt;- bootstraps(campus_train)</code></pre>
+<p>Set up the recipe</p>
+<pre class="r"><code>campus_recipe&lt;-recipe(status~., data = campus_train)%&gt;%step_dummy(all_nominal(), -all_outcomes())%&gt;%step_knnimpute(salary)%&gt;%step_normalize(all_predictors())%&gt;%step_corr(all_predictors())%&gt;%step_zv(all_predictors())
+
+prep(campus_recipe)%&gt;%juice()</code></pre>
+<pre><code>## # A tibble: 162 x 16
+##    middle_school_s… high_school_sco… college_score employ_test mba_score  salary
+##               &lt;dbl&gt;            &lt;dbl&gt;         &lt;dbl&gt;       &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;
+##  1          -0.0872           2.37         -1.17        -1.25    -0.606  -0.171 
+##  2           1.11             1.11          1.57         1.10     0.673  -0.996 
+##  3          -0.281            0.0875       -0.325        0.239   -0.777  -0.407 
+##  4          -1.15            -1.50         -2.01        -0.431   -0.498   0.784 
+##  5           1.73             0.642         0.980        1.86    -1.17    1.66  
+##  6          -1.25            -1.72          0.131       -1.25    -1.84   -0.0179
+##  7           1.36            -0.309        -0.0442      -0.356   -0.0345 -0.383 
+##  8           0.493            1.18          0.798        1.46    -0.180  -0.631 
+##  9          -0.958            0.286        -0.746       -1.32    -1.73    0.0175
+## 10          -0.958           -0.606        -0.886       -0.729   -0.255  -0.289 
+## # … with 152 more rows, and 10 more variables: status &lt;fct&gt;, gender_M &lt;dbl&gt;,
+## #   middle_school_board_Others &lt;dbl&gt;, high_school_board_Others &lt;dbl&gt;,
+## #   high_school_special_Commerce &lt;dbl&gt;, high_school_special_Science &lt;dbl&gt;,
+## #   college_major_Others &lt;dbl&gt;, college_major_Sci.Tech &lt;dbl&gt;, workex_Yes &lt;dbl&gt;,
+## #   mba_special_Mkt.HR &lt;dbl&gt;</code></pre>
+<pre class="r"><code>testing_proc &lt;- bake(prep(campus_recipe), new_data = campus_test)</code></pre>
+<p>set up the models</p>
+<pre class="r"><code>lr_model &lt;- logistic_reg()%&gt;%set_engine(&quot;glm&quot;)
+
+rf_model &lt;- rand_forest()%&gt;%set_mode(&quot;classification&quot;)%&gt;%set_engine(&quot;ranger&quot;)
+
+nn_model &lt;- nearest_neighbor()%&gt;%set_mode(&quot;classification&quot;)%&gt;%set_engine(&quot;kknn&quot;)
+
+tree_model &lt;- decision_tree()%&gt;%set_mode(&quot;classification&quot;)%&gt;%set_engine(&quot;rpart&quot;)</code></pre>
+<pre class="r"><code>lr_wf&lt;-workflow()%&gt;%add_recipe(campus_recipe)%&gt;%add_model(lr_model)
+
+rf_wf&lt;-workflow()%&gt;%add_recipe(campus_recipe)%&gt;%add_model(rf_model)
+
+nn_wf&lt;-workflow()%&gt;%add_recipe(campus_recipe)%&gt;%add_model(nn_model)
+
+tree_wf&lt;-workflow()%&gt;%add_recipe(campus_recipe)%&gt;%add_model(tree_model)</code></pre>
+<pre class="r"><code>lr_result&lt;-lr_wf%&gt;%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
+
+rf_result&lt;-rf_wf%&gt;%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
+
+nn_result&lt;-nn_wf%&gt;%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
+
+tree_result&lt;-tree_wf%&gt;%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))</code></pre>
+<pre class="r"><code>lr_result%&gt;%collect_metrics()</code></pre>
+<pre><code>## # A tibble: 2 x 5
+##   .metric  .estimator  mean     n std_err
+##   &lt;chr&gt;    &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
+## 1 accuracy binary     0.845    25 0.00800
+## 2 roc_auc  binary     0.896    25 0.00894</code></pre>
+<pre class="r"><code>rf_result%&gt;%collect_metrics()</code></pre>
+<pre><code>## # A tibble: 2 x 5
+##   .metric  .estimator  mean     n std_err
+##   &lt;chr&gt;    &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
+## 1 accuracy binary     0.856    25 0.00958
+## 2 roc_auc  binary     0.908    25 0.00972</code></pre>
+<pre class="r"><code>nn_result%&gt;%collect_metrics()</code></pre>
+<pre><code>## # A tibble: 2 x 5
+##   .metric  .estimator  mean     n std_err
+##   &lt;chr&gt;    &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
+## 1 accuracy binary     0.773    25  0.0110
+## 2 roc_auc  binary     0.774    25  0.0110</code></pre>
+<pre class="r"><code>tree_result%&gt;%collect_metrics()</code></pre>
+<pre><code>## # A tibble: 2 x 5
+##   .metric  .estimator  mean     n std_err
+##   &lt;chr&gt;    &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
+## 1 accuracy binary     0.793    25  0.0108
+## 2 roc_auc  binary     0.772    25  0.0210</code></pre>
+<pre class="r"><code>result_total&lt;-lr_result%&gt;%collect_predictions()%&gt;%mutate(model = &quot;lr&quot;)%&gt;%bind_rows(rf_result%&gt;%collect_predictions()%&gt;%mutate(model = &quot;rf&quot;))%&gt;%bind_rows(nn_result%&gt;%collect_predictions()%&gt;%mutate(model = &quot;nn&quot;))%&gt;%bind_rows(tree_result%&gt;%collect_predictions()%&gt;%mutate(model = &quot;tree&quot;))
+
+result_total%&gt;%group_by(model)%&gt;%roc_curve(status,`.pred_Not Placed`)%&gt;%autoplot()</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-22-1.png" width="672" /></p>
+<p>We are going to use random forrest model.</p>
+<pre class="r"><code>set.seed(1234)
+rf_model%&gt;%set_engine(&quot;ranger&quot;, importance = &quot;permutation&quot;)%&gt;%fit(status~., prep(campus_recipe)%&gt;%juice)%&gt;%predict( new_data = testing_proc,type = &quot;prob&quot;)%&gt;%mutate(truth = testing_proc$status)%&gt;%roc_auc(truth, `.pred_Not Placed`)</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 roc_auc binary         0.961</code></pre>
+<pre class="r"><code>library(vip)</code></pre>
+<pre><code>## Warning: package &#39;vip&#39; was built under R version 4.0.2</code></pre>
+<pre><code>## 
+## Attaching package: &#39;vip&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:utils&#39;:
+## 
+##     vi</code></pre>
+<pre class="r"><code>rf_model%&gt;%
+  set_engine(&quot;ranger&quot;, importance = &quot;permutation&quot;)%&gt;%
+  fit(status~., prep(campus_recipe)%&gt;%juice)%&gt;%
+  vi()%&gt;%ggplot(aes(x = Importance,
+                    y = reorder(Variable, Importance)))+geom_col()</code></pre>
+<p><img src="/post/2020-09-14-data-analysis-on-campus-recruitment_files/figure-html/unnamed-chunk-24-1.png" width="672" /></p>
+</div>

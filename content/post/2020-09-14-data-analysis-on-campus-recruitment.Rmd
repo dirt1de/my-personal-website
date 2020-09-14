@@ -1,0 +1,237 @@
+---
+title: Data analysis on campus recruitment
+author: Xuxin Zhang
+date: '2020-09-14'
+slug: data-analysis-on-campus-recruitment
+categories:
+  - R project
+tags:
+  - tidymodel
+  - machine learning
+  - data visualization
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-09-14T12:54:08+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+## 1. Introduction
+
+## 2. Preliminary data analysis
+
+First, we need to import our data and loading the packages we are going to use.
+```{r,message=FALSE,warning=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(plotly)
+campus <- read_csv("/Users/xuxian/Documents/UCLA related/R/Projects/tidymodel/campus recruit/campus recruit.csv")
+theme_set(theme_light())
+```
+
+We can take a look at the data we have. Notice that the names of the columns could be really confusing, so we need to change them into clearer names.
+```{r}
+campus
+```
+
+```{r}
+campus<-campus%>%transmute(sl_no,gender,
+                   middle_school_score = ssc_p,
+                   middle_school_board = ssc_b,
+                   high_school_score = hsc_p, 
+                   high_school_board = hsc_b, 
+                   high_school_special = hsc_s, 
+                   college_score = degree_p, 
+                   college_major = degree_t, 
+                   workex, employ_test = etest_p,
+                   mba_special = specialisation,
+                   mba_score = mba_p, status,
+                   salary)
+campus
+```
+
+
+Since our goal in this project is to create a model to predict whether a peron is placed or not, we can first take a look at how many people are placed in this data set.
+
+```{r}
+campus%>%count(status)
+```
+
+To study which factors can influence the placing status, we first start from analyzing how they perform in their middle school. 
+```{r}
+campus%>%ggplot(aes(x = middle_school_score, fill = status))+
+    geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+
+    geom_density(alpha = 0.6)+scale_fill_brewer(palette = "Paired")+
+    labs(x = "Scores at middle school", y = "Density", title = "Distribution of scores when the applicants were in middle school")
+```
+In this visualization, we see that generally the applicants who receive the offer (placed) have a higher score in middle school. 
+
+Next, we turn to the type of board of education for these applicants.
+
+```{r}
+library(ggplot2)
+campus%>%
+    ggplot(aes(x = middle_school_score, fill = status))+
+    geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+
+    geom_density(alpha = 0.6)+
+    scale_fill_brewer(palette = "Paired")+facet_wrap(~middle_school_board,ncol = 1)+
+    labs(x = "Scores at middle school", y = "Density", title = "Distribution of scores when the applicants were in middle school")
+```
+
+Based on this graph, we could see that the scores for the people with central board of education diverges less compared to the those of people with other boards. This pattern is actually a reflection of the distribution of educational resources among middle schools: the reason why the scores of applicants studying in central board of education don't differ that much is becauses they receive almost equal amount of educational resources. The difference is mostly caused by the the individual difference among the applicants; however, for schools with other types of board of education, in addition to the individual difference among the students, educational resources also play an important role in determining the scores of the students. For example, some schools may have  a better team of teachers than the others. Gradually, these difference of educational resources would inevitably lead to the diverge of students performance. 
+
+Then we would proceed to their high schools. Again, we analyze the distribution of their scores for placed and unplaced applicants. From the following graph, we see the high school scores of unplaced applicants are generally lower than those of placed applicants, which means the high schools score is another important factor.
+
+```{r}
+campus%>%
+  ggplot(aes(x = high_school_score, fill = status))+
+  geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+
+  geom_density(alpha = 0.6)+scale_fill_brewer(palette = "Paired")+
+  labs(x = "Scores at high school", y = "Density", title = "Distribution of scores when the applicants were in high school")
+```
+
+We can exploit more information by adding another variable to our plot above: `high school specialization`. From this graph, we can see two unusual spikes in the density for placed applicants specialized in Arts. My guess for this phenomenon is that Arts specialization is not bonus point in the recruitment process, so the applicants specialized in Arts during their high schools must be really excellent so that they could be considered by the recruiters.
+```{r}
+campus%>%
+  ggplot(aes(x = high_school_score, fill = status))+
+  geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+
+  geom_density(alpha = 0.6)+
+  scale_fill_brewer(palette = "Paired")+facet_wrap(~high_school_special)+
+  labs(x = "Scores at high school", y = "Density", title = "Distribution of scores for applicants with different high school specialization")
+```
+
+After finishing the analysis of the perf
+
+```{r}
+campus%>%
+  ggplot(aes(x = college_score, fill = status))+
+  geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+
+  geom_density(alpha = 0.6)+scale_fill_brewer(palette = "Paired")+
+  labs(x = "College school score", y = "Density", title = "Distribution of scores when the applicants were in high school")
+```
+
+
+```{r}
+campus%>%ggplot(aes(x = college_score, fill = status))+geom_histogram(aes(y = ..density..), alpha = 0.5, color = "white")+geom_density(alpha = 0.6)+scale_fill_brewer(palette = "Paired")+facet_wrap(~college_major)
+```
+
+```{r}
+ggplotly(campus%>%
+  count(mba_special,status)%>%
+  ggplot(aes(x = mba_special, y = n, fill = status))+
+  geom_col(position = "fill")+scale_fill_brewer(palette = "Paired"))
+```
+
+
+```{r}
+campus%>%
+  ggplot(aes(x = mba_special, y = mba_score, fill = status))+
+  geom_boxplot(alpha = 0.7)+scale_fill_brewer(palette = "Paired")
+```
+
+
+```{r}
+campus%>%ggplot(aes(x = mba_score, y = salary, color = workex))+geom_point(alpha = 0.6)+geom_smooth(se = FALSE)+scale_color_brewer(palette = "Paired")
+```
+```{r}
+campus%>%
+  ggplot(aes(x = workex, y = salary, fill = workex))+geom_boxplot(alpha = 0.7)+
+  scale_y_log10()+
+  scale_fill_brewer(palette = "Paired")
+```
+
+From this graph, we could see that for those people who got placed, their salary level doesn't necessarily depend on previous working experience. However, we still notice that some of the people who have previous working experience do have a much higher salary than those who have no previous experience. 
+
+```{r}
+campus_df<-campus%>%select(-sl_no)%>%mutate_if(is.character, factor)
+```
+
+```{r}
+set.seed(123)
+campus_split <- initial_split(campus_df)
+
+campus_train <- training(campus_split)
+campus_test <- testing(campus_split)
+
+campus_boot <- bootstraps(campus_train)
+```
+
+Set up the recipe
+
+```{r}
+campus_recipe<-recipe(status~., data = campus_train)%>%step_dummy(all_nominal(), -all_outcomes())%>%step_knnimpute(salary)%>%step_normalize(all_predictors())%>%step_corr(all_predictors())%>%step_zv(all_predictors())
+
+prep(campus_recipe)%>%juice()
+testing_proc <- bake(prep(campus_recipe), new_data = campus_test)
+```
+
+set up the models
+```{r}
+lr_model <- logistic_reg()%>%set_engine("glm")
+
+rf_model <- rand_forest()%>%set_mode("classification")%>%set_engine("ranger")
+
+nn_model <- nearest_neighbor()%>%set_mode("classification")%>%set_engine("kknn")
+
+tree_model <- decision_tree()%>%set_mode("classification")%>%set_engine("rpart")
+
+```
+
+```{r}
+lr_wf<-workflow()%>%add_recipe(campus_recipe)%>%add_model(lr_model)
+
+rf_wf<-workflow()%>%add_recipe(campus_recipe)%>%add_model(rf_model)
+
+nn_wf<-workflow()%>%add_recipe(campus_recipe)%>%add_model(nn_model)
+
+tree_wf<-workflow()%>%add_recipe(campus_recipe)%>%add_model(tree_model)
+
+```
+
+
+```{r,message=FALSE}
+lr_result<-lr_wf%>%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
+
+rf_result<-rf_wf%>%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
+
+nn_result<-nn_wf%>%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
+
+tree_result<-tree_wf%>%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
+```
+
+```{r}
+lr_result%>%collect_metrics()
+rf_result%>%collect_metrics()
+nn_result%>%collect_metrics()
+tree_result%>%collect_metrics()
+```
+
+
+```{r}
+result_total<-lr_result%>%collect_predictions()%>%mutate(model = "lr")%>%bind_rows(rf_result%>%collect_predictions()%>%mutate(model = "rf"))%>%bind_rows(nn_result%>%collect_predictions()%>%mutate(model = "nn"))%>%bind_rows(tree_result%>%collect_predictions()%>%mutate(model = "tree"))
+
+result_total%>%group_by(model)%>%roc_curve(status,`.pred_Not Placed`)%>%autoplot()
+```
+
+We are going to use random forrest model.
+
+```{r}
+set.seed(1234)
+rf_model%>%set_engine("ranger", importance = "permutation")%>%fit(status~., prep(campus_recipe)%>%juice)%>%predict( new_data = testing_proc,type = "prob")%>%mutate(truth = testing_proc$status)%>%roc_auc(truth, `.pred_Not Placed`)
+```
+
+```{r}
+library(vip)
+rf_model%>%
+  set_engine("ranger", importance = "permutation")%>%
+  fit(status~., prep(campus_recipe)%>%juice)%>%
+  vi()%>%ggplot(aes(x = Importance,
+                    y = reorder(Variable, Importance)))+geom_col()
+```
+
+
+
