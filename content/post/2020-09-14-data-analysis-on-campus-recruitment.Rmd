@@ -21,7 +21,9 @@ image:
 projects: []
 ---
 ## 1. Introduction
-https://www.kaggle.com/mansimeena/facebook-ad-campaigns-analysis-sales-prediction/data
+Today, we will analyze the data on campus recruitment. The data is simulated for MBA students at XYZ campus and includes the students' performance from middle school all the way to MBA. It also contains the application status of a student as well as his/her salary if placed. In this project, we aim to unfold the key factors that determines the application status. In order to achieve this goal, we first do some primary data analysis and then build a machine learning model which hopefully could predict whether a student would be placed or not. You can access the data in the following websites.
+
+https://www.kaggle.com/benroshan/factors-affecting-campus-placement
 
 ## 2. Preliminary data analysis
 
@@ -175,7 +177,7 @@ First we will clean our data once more.
 campus_df<-campus%>%select(-sl_no)%>%mutate_if(is.character, factor)
 ```
 
-
+Next, we will split our data into training and testing data. In order to compare the performance of different models later, we ill create a bootstraps object based on our training data.
 
 ```{r}
 set.seed(123)
@@ -187,16 +189,22 @@ campus_test <- testing(campus_split)
 campus_boot <- bootstraps(campus_train)
 ```
 
-Set up the recipe
+After getting the training data, we will pre-process our data with the help of `recipe` function in the `tidymodels` package. 
 
 ```{r}
-campus_recipe<-recipe(status~., data = campus_train)%>%step_dummy(all_nominal(), -all_outcomes())%>%step_knnimpute(salary)%>%step_normalize(all_predictors())%>%step_corr(all_predictors())%>%step_zv(all_predictors())
+campus_recipe<-recipe(status~., data = campus_train)%>%
+  step_dummy(all_nominal(), -all_outcomes())%>%
+  step_knnimpute(salary)%>%
+  step_normalize(all_predictors())%>%
+  step_corr(all_predictors())%>%
+  step_zv(all_predictors())
 
 prep(campus_recipe)%>%juice()
+
 testing_proc <- bake(prep(campus_recipe), new_data = campus_test)
 ```
 
-set up the models
+Now we can start to set up the models. In this project, we will build 4 models: a logistic regression model, a random forrest model, a nearest neighbor model, and a decision tree model. 
 ```{r}
 lr_model <- logistic_reg()%>%set_engine("glm")
 
@@ -207,6 +215,8 @@ nn_model <- nearest_neighbor()%>%set_mode("classification")%>%set_engine("kknn")
 tree_model <- decision_tree()%>%set_mode("classification")%>%set_engine("rpart")
 
 ```
+
+Then we will create workflow based on the recipe and models we created earlier.
 
 ```{r}
 lr_wf<-workflow()%>%add_recipe(campus_recipe)%>%add_model(lr_model)
@@ -219,6 +229,7 @@ tree_wf<-workflow()%>%add_recipe(campus_recipe)%>%add_model(tree_model)
 
 ```
 
+Finally, we are ready to fit our models with the bootstraps object we created.
 
 ```{r,message=FALSE}
 lr_result<-lr_wf%>%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
@@ -230,6 +241,8 @@ nn_result<-nn_wf%>%fit_resamples(resamples = campus_boot, control = control_resa
 tree_result<-tree_wf%>%fit_resamples(resamples = campus_boot, control = control_resamples(save_pred = TRUE,verbose = TRUE))
 ```
 
+By collecting the metrics, we can evaluate our models. Based on the two metrics we have, we can see that the random forrest model performs the best both in accuracy and roc_auc among the four models.
+
 ```{r}
 lr_result%>%collect_metrics()
 rf_result%>%collect_metrics()
@@ -237,6 +250,7 @@ nn_result%>%collect_metrics()
 tree_result%>%collect_metrics()
 ```
 
+We can actually visualize the result using roc curve:
 
 ```{r}
 result_total<-lr_result%>%collect_predictions()%>%mutate(model = "lr")%>%bind_rows(rf_result%>%collect_predictions()%>%mutate(model = "rf"))%>%bind_rows(nn_result%>%collect_predictions()%>%mutate(model = "nn"))%>%bind_rows(tree_result%>%collect_predictions()%>%mutate(model = "tree"))
@@ -244,20 +258,35 @@ result_total<-lr_result%>%collect_predictions()%>%mutate(model = "lr")%>%bind_ro
 result_total%>%group_by(model)%>%roc_curve(status,`.pred_Not Placed`)%>%autoplot()
 ```
 
-We are going to use random forrest model.
+As a result, we are going to use random forrest model for the remaining part of this object. Once we have determined the model, we can fit one last time on our testing data. We can see this time, we have an estimate of 0.961, which is highly accurate in predicting the applicantion status. 
 
 ```{r}
 set.seed(1234)
-rf_model%>%set_engine("ranger", importance = "permutation")%>%fit(status~., prep(campus_recipe)%>%juice)%>%predict( new_data = testing_proc,type = "prob")%>%mutate(truth = testing_proc$status)%>%roc_auc(truth, `.pred_Not Placed`)
+rf_model%>%set_engine("ranger", importance = "permutation")%>%
+  fit(status~., prep(campus_recipe)%>%juice)%>%
+  predict( new_data = testing_proc,type = "prob")%>%
+  mutate(truth = testing_proc$status)%>%
+  roc_auc(truth, `.pred_Not Placed`)
 ```
 
+We can take a look at important factors in our random forrest model. From the graph, we can see the top four determining factors are `middel_school_score`, `college_score`, `high_school_score`, and `mba_score`, so academic performance is in fact really important. The reason why `middle_school_score` has the highest importance may be due to the fact the scores of placed and unplaced applicants already have diverged quite a lot in middle school. We notice that `gender_M` also has a comparablly high importance, which means gender discrimination still exists during the recruitment process. 
+
 ```{r}
+set.seed(2345)
 library(vip)
-rf_model%>%
+rf_vip<-rf_model%>%
   set_engine("ranger", importance = "permutation")%>%
   fit(status~., prep(campus_recipe)%>%juice)%>%
-  vi()%>%ggplot(aes(x = Importance,
-                    y = reorder(Variable, Importance)))+geom_col()
+  vi()
+
+rf_vip%>%ggplot(aes(x = Importance,
+                    y = reorder(Variable, Importance)))+
+  geom_point()+
+  geom_segment(aes(x = 0, 
+                   xend = rf_vip$Importance, 
+                   y =  reorder(Variable, Importance), 
+                   yend =  reorder(Variable, Importance)))+
+  labs(y = "Variables", title = "The Variable of Importance for the random forrest model")
 ```
 
 
