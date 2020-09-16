@@ -334,7 +334,8 @@ final_lasso%>%fit(staff_train)%>%pull_workflow_fit()%>%vi(lamda = best_penalty$p
                                        TRUE~(-1)*Importance))%>%
   ggplot(aes(x = Importance, y = reorder(Variable, Importance), color = Sign))+
   geom_point(size = 2)+
-  geom_segment(aes(x = 0, xend = Importance, y = Variable, yend = Variable),size = 1.5)
+  geom_segment(aes(x = 0, xend = Importance, y = Variable, yend = Variable),size = 1.5)+
+  labs(x = "Importance", y = "Variable", title = "The Variable of Importance plot")
 
 ```
 
