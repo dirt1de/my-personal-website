@@ -1,0 +1,170 @@
+---
+title: Data analysis on Friends
+author: Xuxin Zhang
+date: '2020-09-16'
+slug: data-analysis-on-friends
+categories:
+  - R project
+tags:
+  - text mining
+  - tidymodel
+  - sentiment analysis
+  - data visualization
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-09-16T16:06:34+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+![](/media/friends.jpg)
+```{r,message=FALSE,warning=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(plotly)
+theme_set(theme_light())
+friends <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends.csv')
+friends_emotions <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends_emotions.csv')
+friends_info <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends_info.csv')
+```
+
+```{r}
+library(stringr)
+remove<-"The One with|The One Where"
+title_clean<-stringr::str_remove_all(friends_info$title,remove)
+
+friends_info%>%mutate(epi_num = row_number())%>%
+  ggplot(aes(x = epi_num, y = imdb_rating ))+
+  geom_point(aes(color = as.factor(season),size = us_views_millions))+
+  geom_path(aes(color = as.factor(season)))+geom_text(label = title_clean,check_overlap = TRUE)+
+  theme(legend.position = "null")+geom_smooth()+
+  scale_color_brewer(palette = "Paired")
+```
+
+```{r}
+friends_info%>%
+  ggplot(aes(x = us_views_millions, y = imdb_rating))+
+  geom_point()+geom_smooth()
+```
+
+
+```{r}
+library(ggridges)
+friends_info%>%mutate(season = as.factor(season))%>%
+  ggplot(aes(y  = imdb_rating, x = season,fill = season))+
+  geom_boxplot(alpha  = 0.6)+
+  geom_smooth(aes(group = 1), se = FALSE)+
+  scale_fill_brewer(palette = "Paired")
+```
+
+We can find out the best 15 episodes as well as the worst 15 episodes.
+```{r}
+ggplotly(friends_info%>%distinct(title,imdb_rating,season)%>%
+  top_n(15,imdb_rating)%>%
+  ggplot(aes(x = imdb_rating,
+             y = reorder(title, imdb_rating),
+             color = as.factor(season)))+
+  geom_point(size = 3)+geom_segment(aes(x = 9.0,
+                                        xend = imdb_rating,
+                                        y = title, 
+                                        yend = title),
+                                        size = 1.5,
+                                    alpha = 0.5)+
+  scale_color_brewer(palette = "Paired"))
+```
+
+
+```{r}
+ggplotly(friends_info%>%distinct(title,imdb_rating,season)%>%
+  top_n(-15,imdb_rating)%>%
+  ggplot(aes(x = imdb_rating,
+             y = reorder(title, imdb_rating),
+             color = as.factor(season)))+
+  geom_point(size = 3)+geom_segment(aes(x = 9.0, xend = imdb_rating, y = title, yend = title),size = 1.5,alpha = 0.5)+
+  scale_color_brewer(palette = "Paired"))
+```
+
+
+
+```{r}
+friends%>%count(speaker)%>%
+  filter(speaker!="NA")%>%
+  filter(n>120)%>%arrange(desc(n))%>%
+  ggplot(aes(x = reorder(speaker,n), y = n, fill = speaker))+
+  geom_col(show.legend = FALSE,alpha= 0.7)+coord_polar()+scale_y_log10()+
+  scale_color_brewer(palette = "Dark2")
+```
+
+```{r}
+library(tidytext)
+friends%>%select(-text)%>%right_join(friends_emotions)%>%
+  count(speaker, emotion)%>%add_count(speaker,name = "num")%>%
+  filter(speaker!="NA")%>%
+  filter(num>50)%>%
+  mutate(average_emo = n/num)%>%
+  ggplot(aes(y = reorder_within(speaker,average_emo,emotion), 
+             x = average_emo, 
+             color = emotion))+
+  geom_point()+
+  geom_segment(aes(x = 0,xend = average_emo,
+                   y = reorder_within(speaker,average_emo,emotion), 
+                   yend = reorder_within(speaker,average_emo,emotion)))+
+  facet_wrap(~emotion,scales = "free")+scale_y_reordered()+
+  scale_color_brewer(palette = "Paired")
+```
+
+
+```{r}
+text<-friends_info%>%mutate(epi_num = row_number())%>%
+  select(season,episode,title,epi_num)%>%
+  right_join(friends, by = c("season" = "season", "episode" = "episode"))%>%distinct(season,epi_num,title,text)
+
+text%>%
+  unnest_tokens(word,text)%>%
+  anti_join(stop_words)%>%inner_join(get_sentiments("afinn"))%>%
+  group_by(season,epi_num,title)%>%
+  summarise(sent = sum(value))%>%ungroup()%>%ggplot(aes(x = epi_num, y = sent))+
+  geom_point(aes(color = as.factor(season)))+geom_line(aes(color = as.factor(season)))+geom_text(aes(label = title),check_overlap = TRUE)+
+  geom_smooth()+
+  scale_color_brewer(palette = "Paired")
+```
+
+
+```{r}
+friends_rating <- friends_info%>%select(title,imdb_rating)
+
+text%>%
+  unnest_tokens(word,text)%>%
+  anti_join(stop_words)%>%inner_join(get_sentiments("afinn"))%>%
+  group_by(season,epi_num,title)%>%
+  summarise(sent = sum(value))%>%ungroup()%>%left_join(friends_rating)%>%
+  ggplot(aes(x = sent, y = imdb_rating))+geom_point()+geom_smooth()
+```
+
+
+```{r}
+friends%>%
+  select(speaker, text)%>%unnest_tokens(word, text)%>%
+  anti_join(stop_words)%>%count(speaker,word)%>%add_count(speaker)%>%
+  filter(nn>7000)%>%filter(speaker!="Scene Directions")%>%select(-nn)%>%
+  bind_tf_idf(word, speaker,n)%>%group_by(speaker)%>%
+  top_n(10,tf_idf)%>%
+  ggplot(aes(x = tf_idf,  y = reorder_within(word, tf_idf, speaker), fill = speaker))+
+  geom_col()+facet_wrap(~speaker, scales = "free_y")+scale_y_reordered()+
+  scale_fill_brewer(palette = "Paired")
+  
+```
+
+
+
+
+
+
+
+
+
+
