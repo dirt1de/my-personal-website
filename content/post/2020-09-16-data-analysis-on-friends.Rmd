@@ -23,7 +23,7 @@ projects: []
 ---
 ![](/media/friends.jpg)
 
-```{r,message=FALSE,warning =TRUE}
+```{r,message=FALSE,warning = FALSE}
 library(tidyverse)
 library(tidymodels)
 library(plotly)
