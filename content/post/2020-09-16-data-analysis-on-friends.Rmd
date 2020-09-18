@@ -163,10 +163,10 @@ text%>%
 
 ### 2.3 Character analysis
 
-Now we start our analysis on the characters. Intuitively, we can find out the chracters with the most lines.
+Now we start our analysis on the characters. Intuitively, we can find out the chracters with the most lines spoken throught the 10 seasons. Based on the graph, it's obvious that the six main characters have way more lines than the rest of people. Among the six, Rachel and Ross have the most lines with over 9000; Phoebe has the least lines of 7500.
 
 ```{r}
-friends%>%count(speaker)%>%
+ggplotly(friends%>%count(speaker)%>%
   filter(speaker!="NA")%>%
   filter(n>120)%>%arrange(desc(n))%>%
   ggplot(aes(y = reorder(speaker,n), x = n,color = speaker))+
@@ -176,11 +176,39 @@ friends%>%count(speaker)%>%
                    y = reorder(speaker,n),
                    yend = reorder(speaker,n)),
                size = 3, alpha = 0.2)+
-  scale_x_log10()+theme(legend.position = "null")
+  scale_x_log10()+theme(legend.position = "null")+
+  labs(x = "Number of times one speaks", 
+       y = "Characters",
+       title = "The characters with the most lines"))
 ```
 
-```{r}
+Next, we use the `bind_tf_idf()` function from `tidytext` package to calculate the tf_idf of each words spoken by the main characters. In this way, by ranking the words in the decreasing order of tf_idf, we are able to get the words uniquely spoken by the characters.
 
+```{r}
+friends%>%
+  select(speaker, text)%>%unnest_tokens(word, text)%>%
+  anti_join(stop_words)%>%count(speaker,word)%>%add_count(speaker)%>%
+  filter(nn>7000)%>%filter(speaker!="Scene Directions")%>%
+  bind_tf_idf(word,speaker,n)%>%
+  group_by(speaker)%>%
+  top_n(10,tf_idf)%>%
+  ungroup()%>%
+  ggplot(aes(x = tf_idf, 
+             y = reorder_within(word, tf_idf, speaker), 
+             fill = speaker))+
+  geom_col()+facet_wrap(~speaker, scales = "free_y")+scale_y_reordered()+
+  scale_fill_brewer(palette = "Paired")+
+  theme(legend.position = "null")+
+  labs(x = "tf-idf", 
+       y = "Words",
+       title = "Top 10 unique words used by the main characters")+
+  theme_minimal()+
+  theme(legend.position = "null")
+```
+
+In fact, we have another way to find the unique words for the characters by calculating the log odds ratio for each words with the help of `bind_log_odds()` function from `tidylo` package. We can compare the results from two methods. 
+
+```{r}
 friends%>%
   select(speaker, text)%>%unnest_tokens(word, text)%>%
   anti_join(stop_words)%>%count(speaker,word)%>%add_count(speaker)%>%
@@ -194,7 +222,11 @@ friends%>%
              y = reorder_within(word, log_odds_weighted, speaker), 
              fill = speaker))+
   geom_col()+facet_wrap(~speaker, scales = "free_y")+scale_y_reordered()+
-  scale_fill_brewer(palette = "Paired")
+  scale_fill_brewer(palette = "Paired")+
+  labs(x = "Weighted log odds ratio", 
+       y = "Words",
+       title = "Top 10 unique words used by the main characters")+
+  theme(legend.position = "null")
   
 ```
 
