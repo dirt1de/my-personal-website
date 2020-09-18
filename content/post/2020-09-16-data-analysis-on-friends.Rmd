@@ -24,9 +24,10 @@ projects: []
 ## 1. Introduction
 In this project, we will focus on  probably the most world-renowned TV series "Friends". This project would be divided into two parts. The first part is the general analysis on the data we have. It could be further broken down into three subcategories: season analysis, episode analysis, and character analysis. We will create a lasso regression model using `tidymodels` package to predict the IMDb rating for episodes in the second part. What we are going to do in the second part is quite similar to what we have done in the "Office" post, so also check that out if you are interested. 
 
+![](/media/friends.jpg)
 
 
-```{r,message=FALSE,warning =TRUE}
+```{r,message=FALSE,warning =FALSE}
 library(tidyverse)
 library(tidymodels)
 library(plotly)
