@@ -21,9 +21,12 @@ image:
   preview_only: no
 projects: []
 ---
+## 1. Introduction
+In this project, we will focus on  probably the most world-renowned TV series "Friends". This project would be divided into two parts. The first part is the general analysis on the data we have. It could be further broken down into three subcategories: season analysis, episode analysis, and character analysis. We will create a lasso regression model using `tidymodels` package to predict the IMDb rating for episodes in the second part. What we are going to do in the second part is quite similar to what we have done in the "Office" post, so also check that out if you are interested. 
+
 ![](/media/friends.jpg)
 
-```{r,message=FALSE,warning = FALSE}
+```{r,message=FALSE,warning =TRUE}
 library(tidyverse)
 library(tidymodels)
 library(plotly)
@@ -32,6 +35,15 @@ friends <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/ti
 friends_emotions <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends_emotions.csv')
 friends_info <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends_info.csv')
 ```
+
+```{r}
+library(ggridges)
+friends_info%>%mutate(season = as.factor(season))%>%
+  ggplot(aes(y  = imdb_rating, x = season,fill = season))+
+  geom_boxplot(alpha  = 0.6)+
+  geom_smooth(aes(group = 1), se = FALSE)
+```
+
 
 ```{r}
 library(stringr)
@@ -47,79 +59,6 @@ friends_info%>%mutate(epi_num = row_number())%>%
   geom_text(label = title_clean,hjust = 1,check_overlap = TRUE,size = 2.5)+
   theme(legend.position = "null")+geom_smooth()
 ```
-
-```{r}
-friends_info%>%
-  ggplot(aes(x = us_views_millions, y = imdb_rating))+
-  geom_point()+geom_smooth()
-```
-
-
-```{r}
-library(ggridges)
-friends_info%>%mutate(season = as.factor(season))%>%
-  ggplot(aes(y  = imdb_rating, x = season,fill = season))+
-  geom_boxplot(alpha  = 0.6)+
-  geom_smooth(aes(group = 1), se = FALSE)
-```
-
-We can find out the best 15 episodes as well as the worst 15 episodes.
-```{r}
-ggplotly(friends_info%>%distinct(title,imdb_rating,season)%>%
-  top_n(15,imdb_rating)%>%
-  ggplot(aes(x = imdb_rating,
-             y = reorder(title, imdb_rating),
-             color = as.factor(season)))+
-  geom_point(size = 3)+geom_segment(aes(x = 9.0,
-                                        xend = imdb_rating,
-                                        y = title, 
-                                        yend = title),
-                                        size = 1.5,
-                                    alpha = 0.5))
-```
-
-
-```{r}
-ggplotly(friends_info%>%distinct(title,imdb_rating,season)%>%
-  top_n(-15,imdb_rating)%>%
-  ggplot(aes(x = imdb_rating,
-             y = reorder(title, imdb_rating),
-             color = as.factor(season)))+
-  geom_point(size = 3)+geom_segment(aes(x = 9.0, xend = imdb_rating, y = title, yend = title),size = 1.5,alpha = 0.5))
-```
-
-
-
-```{r}
-friends%>%count(speaker)%>%
-  filter(speaker!="NA")%>%
-  filter(n>120)%>%arrange(desc(n))%>%
-  ggplot(aes(y = reorder(speaker,n), x = n))+
-  geom_col(fill = "lightgreen")+scale_x_log10()
-```
-
-```{r}
-library(tidytext)
-friends%>%select(-text)%>%right_join(friends_emotions)%>%
-    count(speaker, emotion)%>%add_count(speaker,name = "num")%>%
-    filter(speaker!="NA")%>%
-    filter(num>50)%>%
-    mutate(average_emo = n/num)%>%
-    group_by(emotion)%>%top_n(6,average_emo)%>%
-    ggplot(aes(y = reorder_within(speaker,average_emo,emotion), 
-               x = average_emo, 
-               color = emotion))+
-    geom_point(size = 2.5)+
-    geom_segment(aes(x = 0,xend = average_emo,
-                     y = reorder_within(speaker,average_emo,emotion), 
-                     yend = reorder_within(speaker,average_emo,emotion)),size = 1.5,alpha = 0.7)+
-    facet_wrap(~emotion,scales = "free")+scale_y_reordered()+
-    theme(legend.position = "null")+
-    labs(x = "Average emotion level",
-         y = "Characters",
-         title = "Character rankings in different types of emotion")
-```
-
 
 ```{r}
 
@@ -138,6 +77,11 @@ text%>%
   expand_limits(x = -10)
 ```
 
+```{r}
+friends_info%>%
+  ggplot(aes(x = us_views_millions, y = imdb_rating))+
+  geom_point()+geom_smooth()
+```
 
 ```{r}
 friends_rating <- friends_info%>%select(title,imdb_rating)
@@ -150,6 +94,52 @@ text%>%
   ggplot(aes(x = sent, y = imdb_rating))+geom_point()+geom_smooth()
 ```
 
+
+
+We can find out the best 15 episodes as well as the worst 15 episodes.
+```{r}
+ggplotly(friends_info%>%distinct(title,imdb_rating,season)%>%
+  top_n(15,imdb_rating)%>%
+  ggplot(aes(x = imdb_rating,
+             y = reorder(title, imdb_rating),
+             color = as.factor(season)))+
+  geom_point(size = 3)+geom_segment(aes(x = 9.0,
+                                        xend = imdb_rating,
+                                        y = title, 
+                                        yend = title),
+                                        size = 2,
+                                    alpha = 0.3))
+```
+
+
+```{r}
+ggplotly(friends_info%>%distinct(title,imdb_rating,season)%>%
+  top_n(-15,imdb_rating)%>%
+  ggplot(aes(x = imdb_rating,
+             y = reorder(title, imdb_rating),
+             color = as.factor(season)))+
+  geom_point(size = 3)+
+    geom_segment(aes(x = 7, 
+                     xend = imdb_rating,
+                     y = title, 
+                     yend = title),size = 2,alpha = 0.3))
+```
+
+
+
+```{r}
+friends%>%count(speaker)%>%
+  filter(speaker!="NA")%>%
+  filter(n>120)%>%arrange(desc(n))%>%
+  ggplot(aes(y = reorder(speaker,n), x = n,color = speaker))+
+  geom_point(size = 4)+
+  geom_segment(aes(x = 40,
+                   xend = n, 
+                   y = reorder(speaker,n),
+                   yend = reorder(speaker,n)),
+               size = 3, alpha = 0.2)+
+  scale_x_log10()+theme(legend.position = "null")
+```
 
 ```{r}
 library(tidylo)
@@ -170,6 +160,33 @@ friends%>%
   scale_fill_brewer(palette = "Paired")
   
 ```
+
+```{r}
+library(tidytext)
+friends%>%select(-text)%>%right_join(friends_emotions)%>%
+    count(speaker, emotion)%>%add_count(speaker,name = "num")%>%
+    filter(speaker!="NA")%>%
+    filter(num>50)%>%
+    mutate(average_emo = n/num)%>%
+    group_by(emotion)%>%top_n(6,average_emo)%>%
+    ggplot(aes(y = reorder_within(speaker,average_emo,emotion), 
+               x = average_emo, 
+               fill = emotion))+
+    geom_col()+
+    facet_wrap(~emotion,scales = "free")+scale_y_reordered()+
+    theme(legend.position = "null")+
+    labs(x = "Average emotion level",
+         y = "Characters",
+         title = "Character rankings in different types of emotion")+
+  scale_fill_brewer(palette = "Paired")
+```
+
+
+
+
+
+
+
 
 
 ```{r}
@@ -294,6 +311,7 @@ final_workflow%>%fit(data = friends_train)%>%
   ggplot(aes(x = Importance, y = reorder(Variable, Importance), fill = Sign))+
   geom_col()
 ```
+
 
 
 
