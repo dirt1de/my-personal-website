@@ -24,12 +24,16 @@ projects: []
 ## 1. Introduction
 In this project, we will focus on  probably the most world-renowned TV series "Friends". This project would be divided into two parts. The first part is the general analysis on the data we have. It could be further broken down into three subcategories: season analysis, episode analysis, and character analysis. We will create a lasso regression model using `tidymodels` package to predict the IMDb rating for episodes in the second part. What we are going to do in the second part is quite similar to what we have done in the "Office" post, so also check that out if you are interested. 
 
-![](/media/friends.jpg)
+
 
 ```{r,message=FALSE,warning =TRUE}
 library(tidyverse)
 library(tidymodels)
 library(plotly)
+library(stringr)
+library(tidylo)
+library(tidytext)
+
 theme_set(theme_classic())
 friends <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends.csv')
 friends_emotions <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends_emotions.csv')
@@ -37,7 +41,6 @@ friends_info <- readr::read_csv('https://raw.githubusercontent.com/rfordatascien
 ```
 
 ```{r}
-library(ggridges)
 friends_info%>%mutate(season = as.factor(season))%>%
   ggplot(aes(y  = imdb_rating, x = season,fill = season))+
   geom_boxplot(alpha  = 0.6)+
@@ -46,7 +49,6 @@ friends_info%>%mutate(season = as.factor(season))%>%
 
 
 ```{r}
-library(stringr)
 remove<-"The One with|The One Where"
 title_clean<-stringr::str_remove_all(friends_info$title,remove)
 
@@ -142,7 +144,6 @@ friends%>%count(speaker)%>%
 ```
 
 ```{r}
-library(tidylo)
 
 friends%>%
   select(speaker, text)%>%unnest_tokens(word, text)%>%
@@ -162,7 +163,7 @@ friends%>%
 ```
 
 ```{r}
-library(tidytext)
+
 friends%>%select(-text)%>%right_join(friends_emotions)%>%
     count(speaker, emotion)%>%add_count(speaker,name = "num")%>%
     filter(speaker!="NA")%>%
