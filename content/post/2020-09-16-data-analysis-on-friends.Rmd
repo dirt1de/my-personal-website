@@ -201,12 +201,12 @@ friends%>%
   theme(legend.position = "null")+
   labs(x = "tf-idf", 
        y = "Words",
-       title = "Top 10 unique words used by the main characters")+
+       title = "Top 10 unique words used by the main characters calculated by tf-idf")+
   theme_minimal()+
   theme(legend.position = "null")
 ```
 
-In fact, we have another way to find the unique words for the characters by calculating the log odds ratio for each words with the help of `bind_log_odds()` function from `tidylo` package. We can compare the results from two methods. 
+In fact, we have another way to find the unique words for the characters by calculating the log odds ratio for each words with the help of `bind_log_odds()` function from `tidylo` package. 
 
 ```{r}
 friends%>%
@@ -225,16 +225,21 @@ friends%>%
   scale_fill_brewer(palette = "Paired")+
   labs(x = "Weighted log odds ratio", 
        y = "Words",
-       title = "Top 10 unique words used by the main characters")+
+       title = "Top 10 unique words used by the main characters calculated by odds ratio")+
   theme(legend.position = "null")
   
 ```
 
-```{r}
+We can actually compare the results of these two methods. For the log odds ratio method, the unique words tend to be mostly names of other characters and words like "whoa", "yeah", "honey", and "sweetie". We coudln't really gain much important information from this method. However, if we take a look at the result of the tf-idf method, we will notice that the words are not only used uniquely by the characters, but they also reveal their personal information. For example, we see that for Ross, evolution and paleontology have the highest tf-idf, which makes sense since Ross is a paleontologist; for Joey, script and casting also have a high tf-idf for a similar reason. In this way, I believe the results of the tf-idf method is much better and more informative than the results of the log odds ratio method. If you show the visualization that depends on tf-idf to people who have never watched "Friends" before, they would probably be able to have a rough idea on who these characters are and what are their personalities. 
 
+Next, we can do a sentiment analysis on the characters. In the `friends_emotions` dataset, we only have the sentiment information of each utterance in episodes but without knowing which character is responsible for that utterance. In order to do the sentiment analysis for all the characters, we need to find out corresponding characters for each utterance. We can do this by joining the `friends_emotions` data with the `friends` data first. A really important thing to notice is that since different characters have different number of lines, we need to take this fact into consideration instead of just ranking the total number of utterance for a character within a type of emotion. That is to say, we need to divide by the total number of lines for each character.
+
+After doing this, we get the top five characters for each type of emotion based on their adjusted count of utterance associated with that certain emotion. If you have watched "Friends", you will find the ranking to be pretty accurate: Janice does have a comparatively high proportion of sad utterance, and the lines for Peter Becker are quite powerful since he is both a millionaire and UFC fighter.
+```{r}
 friends%>%select(-text)%>%right_join(friends_emotions)%>%
     count(speaker, emotion)%>%add_count(speaker,name = "num")%>%
     filter(speaker!="NA")%>%
+    filter(speaker!="#ALL#")%>%
     filter(num>50)%>%
     mutate(average_emo = n/num)%>%
     group_by(emotion)%>%top_n(6,average_emo)%>%
@@ -250,14 +255,9 @@ friends%>%select(-text)%>%right_join(friends_emotions)%>%
   scale_fill_brewer(palette = "Paired")
 ```
 
+An interesting question to ask is whether the rating for the IMDb rating of an episode depends on the number of lines spoken by the main characters or not. To do so, we can do a quite rough analysis by plotting the regression line of the IMDb rating for each episode against the proportion of lines a certain character has within that episode (we will elaborate more on this analysis in our model construction section). 
 
-
-
-
-
-
-
-
+Based on the visualization, the rating would goes down with the increasing proportion of lines spoken by Chandler and Joey. For Ross and Phoebe, the more they speak, the higher the rating for that episode would be. 
 ```{r}
 friends_speak<-friends%>%count(speaker,season,episode)%>%
   add_count(speaker,name = "total_speak")%>%
@@ -271,12 +271,15 @@ friends_info%>%select(season,episode,imdb_rating)%>%
   geom_point(alpha = 0.5)+facet_wrap(~speaker)+
   scale_x_log10()+
   geom_smooth()+
-  scale_color_brewer(palette = "Paired")
-  
+  scale_color_brewer(palette = "Paired")+
+  labs(x = "Proportion of lines within a specific episodes",
+       y = "IMDb rating",
+       title = "The relationship between the proportion of lines spoken and rating")+
+  theme(legend.position = "null")
 ```
 
 ## 3. Constructing a lasso regression model
-
+In this section, we start to build our regression model. First, the data needs to be further cleaned by removing the characters with few lines. The lines with speaker being "NA" and "Scene Directions" would also be filtered out. After that, we will make our dataset to be wider so that the dataset will have the following form. In this way, we know how many times the main characters speak in each episode. 
 ```{r}
 friends_actors<-friends%>%
   select(season, episode,speaker)%>%
@@ -290,9 +293,9 @@ friends_actors<-friends%>%
 
 friends_actors
 ```
+We do the same thing for the "friends_info" data so that it shows the writer and director composition for each episode. 
 
-Notice the difference in row number. Why is that? 
-We have filtered out some of the directors and writers. 
+Notice the difference in row number bewteen the two datasets. It is due to the fact that we have filtered out some of the directors and writers that only appear few times. 
 
 ```{r}
 friends_creators<-friends_info%>%select(season,
@@ -314,12 +317,16 @@ friends_creators<-friends_info%>%select(season,
 friends_creators
 ```
 
+Then we join the two datasets together to get the `friends_staff`.
+
 ```{r}
 friends_staff<-friends_actors%>%inner_join(friends_creators,by = c("season","episode"))%>%
   inner_join(friends_info%>%select(season,episode, title), by= c("season","episode"))
 
 friends_staff
 ```
+
+After getting the cleaned data, we split it into training and testing data. In order to tune the parameter of our lasso model later, a bootstraps object is also created. 
 
 ```{r}
 set.seed(123)
@@ -330,7 +337,7 @@ friends_test <- testing(friends_split)
 friends_boot <- bootstraps(friends_train,strata = season)
 ```
 
-
+Next we use `recipe` function to pre-process our data. In the following code, we normalize all the numerical columns and remove the columns if they have zero variance or high correlation. 
 ```{r}
 friends_recipe<-recipe(imdb_rating~., data =  friends_train)%>%
   update_role(title, new_role = "ID")%>%
@@ -341,7 +348,7 @@ friends_recipe<-recipe(imdb_rating~., data =  friends_train)%>%
 prep(friends_recipe)%>%juice()
 ```
 
-
+Then we use the `workflow` function to conduct our first fit. The fitting result shows that the viewing number, the lines Monica and Frank speak would increase the overall rating. However, this is just the result from our untuned model. Our next step is to tune the penaly parameter using the bootstraps object.
 
 ```{r}
 library(vip)
@@ -351,6 +358,8 @@ friends_lasso<-linear_reg(penalty = 0.001, mixture=1)%>%set_engine("glmnet")
 workflow()%>%add_recipe(friends_recipe)%>%add_model(friends_lasso)%>%
   fit(data = friends_train)%>%pull_workflow_fit()%>%tidy()%>%arrange(desc(estimate))
 ```
+
+The code below shows how to tune the parameter. Moreover, we fit the data once again to get the `tuned_lasso`
 
 ```{r,warning=FALSE,message=FALSE}
 set.seed(2020)
@@ -364,13 +373,17 @@ tuned_lasso<-tune_grid(workflow()%>%add_recipe(friends_recipe)%>%add_model(tune_
           grid = lambda)
 ```
 
+To visualize the result, we plot the mean against the value for each penalty. The best value for the parameter is the value at the peak of rsq and the bottom of rmse. 
 
 ```{r}
 tuned_lasso%>%collect_metrics()%>%
   ggplot(aes(x = penalty, y = mean, color = .metric))+
   geom_point()+geom_path()+facet_wrap(~.metric,scales = "free",ncol = 1)+
-  scale_x_log10()
+  scale_x_log10()+
+  scale_color_brewer(palette = "Paired")
 ```
+
+We take the best value for penalty and finalize our workflow with it. 
 
 ```{r}
 best_penalty<-tuned_lasso%>%select_best("rmse")
@@ -381,6 +394,14 @@ final_workflow<-finalize_workflow(workflow()%>%
                                   best_penalty)
 ```
 
+Finally, we can fit our finalized model to the testing data to see its performance.
+
+```{r}
+set.seed(5432)
+final_workflow%>%last_fit(friends_split)%>%collect_metrics()
+```
+
+After doing the fitting, we can visualize in the following way to show the importance of each variables in the model. 
 
 ```{r}
 set.seed(4321)
@@ -389,7 +410,8 @@ final_workflow%>%fit(data = friends_train)%>%
   vi(lamda = best_penalty$penalty)%>%
   mutate(Importance = abs(Importance))%>%
   ggplot(aes(x = Importance, y = reorder(Variable, Importance), fill = Sign))+
-  geom_col()
+  geom_col()+
+  labs(x = "Importance",  y = "Variable", title = "The Variable of Importance graph")
 ```
 
 
