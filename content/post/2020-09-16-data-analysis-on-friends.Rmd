@@ -352,7 +352,7 @@ workflow()%>%add_recipe(friends_recipe)%>%add_model(friends_lasso)%>%
   fit(data = friends_train)%>%pull_workflow_fit()%>%tidy()%>%arrange(desc(estimate))
 ```
 
-```{r,warning=FALSE}
+```{r,warning=FALSE,message=FALSE}
 set.seed(2020)
 tune_model <-linear_reg(penalty = tune(), mixture=1)%>%
   set_engine("glmnet")
@@ -362,7 +362,10 @@ lambda <- grid_regular(penalty(),levels = 50)
 tuned_lasso<-tune_grid(workflow()%>%add_recipe(friends_recipe)%>%add_model(tune_model),
           resamples = friends_boot,
           grid = lambda)
+```
 
+
+```{r}
 tuned_lasso%>%collect_metrics()%>%
   ggplot(aes(x = penalty, y = mean, color = .metric))+
   geom_point()+geom_path()+facet_wrap(~.metric,scales = "free",ncol = 1)+
