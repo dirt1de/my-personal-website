@@ -1,0 +1,421 @@
+---
+title: Data analysis on "Friends"
+author: Xuxin Zhang
+date: '2020-09-16'
+slug: data-analysis-on-friends
+categories:
+  - R project
+tags:
+  - text mining
+  - tidymodel
+  - sentiment analysis
+  - data visualization
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-09-16T16:06:34+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+## 1. Introduction
+In this project, we will focus on  probably the most world-renowned TV series "Friends". This project would be divided into two parts. The first part is the general analysis on the data we have. It could be further broken down into three subcategories: season analysis, episode analysis, and character analysis. We will create a lasso regression model using `tidymodels` package to predict the IMDb rating for episodes in the second part. What we are going to do in the second part is quite similar to what we have done in the "Office" post, so also check that out if you are interested. 
+
+![](/media/friends.jpg)
+
+## 2. Preliminary data analysis
+First of all, we need to load the packages we are going to use later and import the friends data.
+```{r,message=FALSE,warning =FALSE}
+library(tidyverse)
+library(tidymodels)
+library(plotly)
+library(stringr)
+library(tidylo)
+library(tidytext)
+
+theme_set(theme_classic())
+friends <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends.csv')
+friends_emotions <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends_emotions.csv')
+friends_info <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-08/friends_info.csv')
+```
+
+We can take a look at each of them to see what kinds of data are included.
+
+We see that the `friends` data contains the lines spoken by each character in each episodes; `friends_info` has the data about the directors and writers, count for US viewers, and the IMDb rating for each episodes; in `friends_emotions`, we can find the category of emotion related to each utterance. 
+
+```{r}
+friends%>%head()
+friends_info%>%head()
+friends_emotions%>%head()
+```
+### 2.1 Season analysis
+As said in the introduction, we will first do a season analysis. In specific, we will analyze the distribution fo IMDb rating for each of the 10 seasons. 
+
+With the help of the regression line, we find the pattern for the IMDb rating is that the rating reaches the peak around Season 5, then the rating declines and reaches bottom at Season 8. The rating finally climbs back to the top at the last season. In addition, we can see that IMDb rating varies the most at Season 4: it has both the lowest rating of 7.2 as well as the second highest rating of 9.5.
+
+```{r}
+ggplotly(friends_info%>%mutate(season = as.factor(season))%>%
+  ggplot(aes(y  = imdb_rating, x = season,fill = season))+
+  geom_boxplot(alpha  = 0.3,show.legend = FALSE)+
+  geom_smooth(aes(group = 1), se = FALSE)+theme(legend.position = "null")+
+  labs(x = "Season", y = "IMDb rating",
+       title ="IMDb rating distribution for each season"))
+```
+
+### 2.2 Episode analysis
+Next we focus on the episodes analysis. In order for the titles of all episodes to fit in the graph, we first need to drop the starting phrases such as "The One with" and "The One Where".
+After doing so, we can visualize the information. The following graph shows the IMDb rating for each of the episodes. It's not hard to see that "the Prom Video", "Everybody Finds Out", "the Embryos", and "The Last one" have the highest rating. We also notice that "the Invitation", "Mac and C.H.E.E.S.E.", "the Vows", "Christmas" have the lowest ratings. 
+
+```{r}
+remove<-"The One with|The One Where"
+title_clean<-stringr::str_remove_all(friends_info$title,remove)
+
+friends_info%>%mutate(epi_num = row_number())%>%
+  ggplot(aes(x = epi_num, y = imdb_rating ))+
+  geom_point(aes(color = as.factor(season),size = us_views_millions),alpha = 0.6)+
+  geom_path(aes(color = as.factor(season)),alpha = 0.6)+
+  expand_limits(x = -10)+
+  expand_limits(x = 230)+
+  geom_text(label = title_clean,hjust = 1,check_overlap = TRUE,size = 2.5)+
+  theme(legend.position = "null")+geom_smooth()+
+  labs(x = "Total episode number", 
+       y = "IMDb rating", 
+       title = "The change of IMDb rating across episodes")+
+  scale_color_brewer(palette = "Paired")
+```
+
+To take a closer look, we can find out the best 15 episodes as well as the worst 15 episodes.
+```{r}
+ggplotly(friends_info%>%distinct(title,imdb_rating,season)%>%
+  top_n(15,imdb_rating)%>%
+  ggplot(aes(x = imdb_rating,
+             y = reorder(title, imdb_rating),
+             color = as.factor(season)))+
+  geom_point(size = 3)+
+  geom_segment(aes(x = 9.0,
+                   xend = imdb_rating, 
+                   y = title, 
+                   yend = title),size = 2, alpha = 0.3)+
+    scale_x_continuous(breaks = c(9,9.1,9.2,9.3,9.4,9.5,9.6))+
+    labs(x = "IMDb rating",
+         y = "Title",
+         title = "The top 15 episodes with best ratings",
+         color = "seasons"))
+```
+
+
+```{r}
+ggplotly(friends_info%>%distinct(title,imdb_rating,season)%>%
+  top_n(-15,imdb_rating)%>%
+  ggplot(aes(x = imdb_rating,
+             y = reorder(title, imdb_rating),
+             color = as.factor(season)))+
+  geom_point(size = 3)+
+    geom_segment(aes(x = 7, 
+                     xend = imdb_rating,
+                     y = title, 
+                     yend = title),size = 2,alpha = 0.3)+
+    scale_x_continuous(breaks = c(7.2,7.4,7.6,7.8,8))+
+    labs(x = "IMDb rating",
+         y = "Title",
+         title = "The top 15 episodes with worst ratings",
+         color = "season"))
+```
+
+Since we also have the viewing number at hand, we can ask the question: does the rating depends on the viewing number? To answer it, we can do a regression of rating against the viewing numbers, and here is the result: there is a highly positive correlation between these two variables. 
+```{r}
+friends_info%>%
+  ggplot(aes(x = us_views_millions, y = imdb_rating))+
+  geom_point()+geom_smooth()+
+  labs(x = "US views (in millions)",
+       y = "IMDb rating",
+       title = "The relationship between viewing counts and IMDb rating")
+```
+
+Then, we can find out how the sentiment level changes across episodes. To do this, we first need to tokenize all the lines of each episodes and then sum the sentiment value for each word up to get the sentiment level of an episode. Here is what we get: we see that on average, the sentiment level gradually increases across the seasons. From the graph, we notice that "The one with Rachel Has a Baby" has the lowest sentiment level. I don't remember the content exactly, but the negative sentiment could due to the fact that Rachel and Ross are having a fight in that episode and Rachel complains a lot about the suffer from giving a labor. 
+
+```{r,warning=FALSE}
+
+text<-friends_info%>%mutate(epi_num = row_number())%>%
+  select(season,episode,title,epi_num)%>%
+  right_join(friends, by = c("season" = "season", "episode" = "episode"))%>%distinct(season,epi_num,title,text)
+
+text%>%
+  unnest_tokens(word,text)%>%
+  anti_join(stop_words)%>%inner_join(get_sentiments("afinn"))%>%
+  group_by(season,epi_num,title)%>%
+  summarise(sent = sum(value))%>%ungroup()%>%ggplot(aes(x = epi_num, y = sent))+
+  geom_point(aes(color = as.factor(season)),alpha = 0.6)+
+  geom_line(aes(color = as.factor(season)),alpha = 0.6)+
+  geom_text(aes(label = title_clean),check_overlap = TRUE,size = 2.5)+
+  geom_smooth()+
+  scale_color_brewer(palette = "Paired")+theme(legend.position = "null")+
+  expand_limits(x = -10)+
+  labs(x = "Total episode number", 
+       y = "Sentiment level",
+       title = "The change of sentiment level across episodes")
+```
+
+
+
+### 2.3 Character analysis
+
+Now we start our analysis on the characters. Intuitively, we can find out the chracters with the most lines spoken throught the 10 seasons. Based on the graph, it's obvious that the six main characters have way more lines than the rest of people. Among the six, Rachel and Ross have the most lines with over 9000; Phoebe has the least lines of 7500.
+
+```{r}
+ggplotly(friends%>%count(speaker)%>%
+  filter(speaker!="NA")%>%
+  filter(n>120)%>%arrange(desc(n))%>%
+  ggplot(aes(y = reorder(speaker,n), x = n,color = speaker))+
+  geom_point(size = 4)+
+  geom_segment(aes(x = 40,
+                   xend = n, 
+                   y = reorder(speaker,n),
+                   yend = reorder(speaker,n)),
+               size = 3, alpha = 0.2)+
+  scale_x_log10()+theme(legend.position = "null")+
+  labs(x = "Number of times one speaks", 
+       y = "Characters",
+       title = "The characters with the most lines"))
+```
+
+Next, we use the `bind_tf_idf()` function from `tidytext` package to calculate the tf_idf of each words spoken by the main characters. In this way, by ranking the words in the decreasing order of tf_idf, we are able to get the words uniquely spoken by the characters.
+
+```{r}
+friends%>%
+  select(speaker, text)%>%unnest_tokens(word, text)%>%
+  anti_join(stop_words)%>%count(speaker,word)%>%add_count(speaker)%>%
+  filter(nn>7000)%>%filter(speaker!="Scene Directions")%>%
+  bind_tf_idf(word,speaker,n)%>%
+  group_by(speaker)%>%
+  top_n(10,tf_idf)%>%
+  ungroup()%>%
+  ggplot(aes(x = tf_idf, 
+             y = reorder_within(word, tf_idf, speaker), 
+             fill = speaker))+
+  geom_col()+facet_wrap(~speaker, scales = "free_y")+scale_y_reordered()+
+  scale_fill_brewer(palette = "Paired")+
+  theme(legend.position = "null")+
+  labs(x = "tf-idf", 
+       y = "Words",
+       title = "Top 10 unique words used by the main characters calculated by tf-idf")+
+  theme_minimal()+
+  theme(legend.position = "null")
+```
+
+In fact, we have another way to find the unique words for the characters by calculating the log odds ratio for each words with the help of `bind_log_odds()` function from `tidylo` package. 
+
+```{r}
+friends%>%
+  select(speaker, text)%>%unnest_tokens(word, text)%>%
+  anti_join(stop_words)%>%count(speaker,word)%>%add_count(speaker)%>%
+  filter(nn>7000)%>%filter(speaker!="Scene Directions")%>%
+  add_count(word)%>%
+  filter(nnn > 50)%>%
+  bind_log_odds(speaker,word,n)%>%
+  group_by(speaker)%>%
+  top_n(10,log_odds_weighted)%>%
+  ggplot(aes(x = log_odds_weighted, 
+             y = reorder_within(word, log_odds_weighted, speaker), 
+             fill = speaker))+
+  geom_col()+facet_wrap(~speaker, scales = "free_y")+scale_y_reordered()+
+  scale_fill_brewer(palette = "Paired")+
+  labs(x = "Weighted log odds ratio", 
+       y = "Words",
+       title = "Top 10 unique words used by the main characters calculated by odds ratio")+
+  theme(legend.position = "null")
+  
+```
+
+We can actually compare the results of these two methods. For the log odds ratio method, the unique words tend to be mostly names of other characters and words like "whoa", "yeah", "honey", and "sweetie". We coudln't really gain much important information from this method. However, if we take a look at the result of the tf-idf method, we will notice that the words are not only used uniquely by the characters, but they also reveal their personal information. For example, we see that for Ross, evolution and paleontology have the highest tf-idf, which makes sense since Ross is a paleontologist; for Joey, script and casting also have a high tf-idf for a similar reason. In this way, I believe the results of the tf-idf method is much better and more informative than the results of the log odds ratio method. If you show the visualization that depends on tf-idf to people who have never watched "Friends" before, they would probably be able to have a rough idea on who these characters are and what are their personalities. 
+
+Next, we can do a sentiment analysis on the characters. In the `friends_emotions` dataset, we only have the sentiment information of each utterance in episodes but without knowing which character is responsible for that utterance. In order to do the sentiment analysis for all the characters, we need to find out corresponding characters for each utterance. We can do this by joining the `friends_emotions` data with the `friends` data first. A really important thing to notice is that since different characters have different number of lines, we need to take this fact into consideration instead of just ranking the total number of utterance for a character within a type of emotion. That is to say, we need to divide by the total number of lines for each character.
+
+After doing this, we get the top five characters for each type of emotion based on their adjusted count of utterance associated with that certain emotion. If you have watched "Friends", you will find the ranking to be pretty accurate: Janice does have a comparatively high proportion of sad utterance, and the lines for Peter Becker are quite powerful since he is both a millionaire and UFC fighter.
+```{r}
+friends%>%select(-text)%>%right_join(friends_emotions)%>%
+    count(speaker, emotion)%>%add_count(speaker,name = "num")%>%
+    filter(speaker!="NA")%>%
+    filter(speaker!="#ALL#")%>%
+    filter(num>50)%>%
+    mutate(average_emo = n/num)%>%
+    group_by(emotion)%>%top_n(6,average_emo)%>%
+    ggplot(aes(y = reorder_within(speaker,average_emo,emotion), 
+               x = average_emo, 
+               fill = emotion))+
+    geom_col()+
+    facet_wrap(~emotion,scales = "free")+scale_y_reordered()+
+    theme(legend.position = "null")+
+    labs(x = "Average emotion level",
+         y = "Characters",
+         title = "Character rankings in different types of emotion")+
+  scale_fill_brewer(palette = "Paired")
+```
+
+An interesting question to ask is whether the rating for the IMDb rating of an episode depends on the number of lines spoken by the main characters or not. To do so, we can do a quite rough analysis by plotting the regression line of the IMDb rating for each episode against the proportion of lines a certain character has within that episode (we will elaborate more on this analysis in our model construction section). 
+
+Based on the visualization, the rating would goes down with the increasing proportion of lines spoken by Chandler and Joey. For Ross and Phoebe, the more they speak, the higher the rating for that episode would be. 
+```{r}
+friends_speak<-friends%>%count(speaker,season,episode)%>%
+  add_count(speaker,name = "total_speak")%>%
+  add_count(season,episode,name = "total_speak_per_ep")%>%
+  filter(total_speak>7000)%>%select(-total_speak)%>%mutate(prop_line = n/total_speak_per_ep)%>%
+  select(-n,-total_speak_per_ep)
+
+friends_info%>%select(season,episode,imdb_rating)%>%
+  inner_join(friends_speak,by = c("season","episode"))%>%
+  ggplot(aes(x = prop_line, y = imdb_rating, color = speaker))+
+  geom_point(alpha = 0.5)+facet_wrap(~speaker)+
+  scale_x_log10()+
+  geom_smooth()+
+  scale_color_brewer(palette = "Paired")+
+  labs(x = "Proportion of lines within a specific episodes",
+       y = "IMDb rating",
+       title = "The relationship between the proportion of lines spoken and rating")+
+  theme(legend.position = "null")
+```
+
+## 3. Constructing a lasso regression model
+In this section, we start to build our regression model. First, the data needs to be further cleaned by removing the characters with few lines. The lines with speaker being "NA" and "Scene Directions" would also be filtered out. After that, we will make our dataset to be wider so that the dataset will have the following form. In this way, we know how many times the main characters speak in each episode. 
+```{r}
+friends_actors<-friends%>%
+  select(season, episode,speaker)%>%
+  count(season, episode,speaker)%>%add_count(speaker)%>%
+  filter(nn>=150)%>%
+  filter(speaker!="NA")%>%
+  filter(speaker!="Scene Directions")%>%
+  select(-nn)%>%
+  group_by(season, episode)%>%
+  pivot_wider(names_from = speaker, values_from = n, values_fill = 0)
+
+friends_actors
+```
+We do the same thing for the "friends_info" data so that it shows the writer and director composition for each episode. 
+
+Notice the difference in row number bewteen the two datasets. It is due to the fact that we have filtered out some of the directors and writers that only appear few times. 
+
+```{r}
+friends_creators<-friends_info%>%select(season,
+                                        episode, 
+                                        directed_by,
+                                        written_by,
+                                        imdb_rating,
+                                        us_views_millions)%>%
+  mutate(written_by = str_replace(written_by,"Teleplay by :"," &"))%>%
+  mutate(written_by = str_remove(written_by,"Story by :"))%>%
+  separate_rows(written_by,sep ="&")%>%
+  pivot_longer(directed_by:written_by,names_to = "position",values_to = "name")%>%
+  distinct(season,episode,imdb_rating,position,name,us_views_millions)%>%
+  add_count(name)%>%filter(n>=12)%>%
+  select(-position,-n)%>%
+  mutate(count = 1)%>%group_by(season,episode, imdb_rating)%>%
+  pivot_wider(names_from = name, values_from = count, values_fill = 0)
+
+friends_creators
+```
+
+Then we join the two datasets together to get the `friends_staff`.
+
+```{r}
+friends_staff<-friends_actors%>%inner_join(friends_creators,by = c("season","episode"))%>%
+  inner_join(friends_info%>%select(season,episode, title), by= c("season","episode"))
+
+friends_staff
+```
+
+After getting the cleaned data, we split it into training and testing data. In order to tune the parameter of our lasso model later, a bootstraps object is also created. 
+
+```{r}
+set.seed(123)
+friends_split<-initial_split(friends_staff,strata = season)
+friends_train <- training(friends_split)
+friends_test <- testing(friends_split)
+
+friends_boot <- bootstraps(friends_train,strata = season)
+```
+
+Next we use `recipe` function to pre-process our data. In the following code, we normalize all the numerical columns and remove the columns if they have zero variance or high correlation. 
+```{r}
+friends_recipe<-recipe(imdb_rating~., data =  friends_train)%>%
+  update_role(title, new_role = "ID")%>%
+  step_normalize(all_predictors())%>%
+  step_zv(all_predictors())%>%
+  step_corr(all_predictors())
+
+prep(friends_recipe)%>%juice()
+```
+
+Then we use the `workflow` function to conduct our first fit. The fitting result shows that the viewing number, the lines Monica and Frank speak would increase the overall rating. However, this is just the result from our untuned model. Our next step is to tune the penaly parameter using the bootstraps object.
+
+```{r}
+library(vip)
+set.seed(234)
+friends_lasso<-linear_reg(penalty = 0.001, mixture=1)%>%set_engine("glmnet")
+
+workflow()%>%add_recipe(friends_recipe)%>%add_model(friends_lasso)%>%
+  fit(data = friends_train)%>%pull_workflow_fit()%>%tidy()%>%arrange(desc(estimate))
+```
+
+The code below shows how to tune the parameter. Moreover, we fit the data once again to get the `tuned_lasso`
+
+```{r,warning=FALSE,message=FALSE}
+set.seed(2020)
+tune_model <-linear_reg(penalty = tune(), mixture=1)%>%
+  set_engine("glmnet")
+
+lambda <- grid_regular(penalty(),levels = 50)
+
+tuned_lasso<-tune_grid(workflow()%>%add_recipe(friends_recipe)%>%add_model(tune_model),
+          resamples = friends_boot,
+          grid = lambda)
+```
+
+To visualize the result, we plot the mean against the value for each penalty. The best value for the parameter is the value at the peak of rsq and the bottom of rmse. 
+
+```{r}
+tuned_lasso%>%collect_metrics()%>%
+  ggplot(aes(x = penalty, y = mean, color = .metric))+
+  geom_point()+geom_path()+facet_wrap(~.metric,scales = "free",ncol = 1)+
+  scale_x_log10()+
+  scale_color_brewer(palette = "Paired")
+```
+
+We take the best value for penalty and finalize our workflow with it. 
+
+```{r}
+best_penalty<-tuned_lasso%>%select_best("rmse")
+
+final_workflow<-finalize_workflow(workflow()%>%
+                                    add_recipe(friends_recipe)%>%
+                                    add_model(tune_model), 
+                                  best_penalty)
+```
+
+Finally, we can fit our finalized model to the testing data to see its performance.
+
+```{r}
+set.seed(5432)
+final_workflow%>%last_fit(friends_split)%>%collect_metrics()
+```
+
+After doing the fitting, we can visualize in the following way to show the importance of each variables in the model. 
+
+```{r}
+set.seed(4321)
+final_workflow%>%fit(data = friends_train)%>%
+  pull_workflow_fit()%>%
+  vi(lamda = best_penalty$penalty)%>%
+  mutate(Importance = abs(Importance))%>%
+  ggplot(aes(x = Importance, y = reorder(Variable, Importance), fill = Sign))+
+  geom_col()+
+  labs(x = "Importance",  y = "Variable", title = "The Variable of Importance graph")
+```
+
+
+
+
+
+

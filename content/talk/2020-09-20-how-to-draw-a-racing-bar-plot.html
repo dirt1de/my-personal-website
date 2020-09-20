@@ -1,0 +1,92 @@
+---
+title: How to draw a racing bar plot
+author: Xuxin Zhang
+date: '2020-09-20'
+slug: how-to-draw-a-racing-bar-plot
+categories:
+  - R tutorials
+tags:
+  - R tutorials
+  - data visualization
+subtitle: ''
+summary: ''
+authors: []
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+
+
+<p>Talke about how asfdosdfoijsdf s
+dfsdfasdf sdfsf
+sdfasdfd</p>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## Warning: package &#39;ggplot2&#39; was built under R version 4.0.2</code></pre>
+<pre><code>## Warning: package &#39;tibble&#39; was built under R version 4.0.2</code></pre>
+<pre class="r"><code>library(extrafont)</code></pre>
+<pre><code>## Warning: package &#39;extrafont&#39; was built under R version 4.0.2</code></pre>
+<pre class="r"><code>library(gganimate)</code></pre>
+<pre><code>## Warning: package &#39;gganimate&#39; was built under R version 4.0.2</code></pre>
+<pre class="r"><code>library(scales)
+theme_set(theme_light())
+kids &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-15/kids.csv&#39;)</code></pre>
+<p>First, make sure you have the ranking for each country in every year since we will begin by plotting a stacked bar plot with ranking on x-axis and the total spending on y-axis. (More generally, to make the animated bar plot, make sure the variable on y axis is changing overtime for each category such as country in our case.) Also, to simplify the GIF, we only focus on the top 15 countries with the most spending for every year.</p>
+<p>What the following code does is to first filter out other variables since we only focus on the K12 education spending only. Then we need to multiply the <code>inf_adj_perchild</code> by 1000 because the numbers are calculated in $1000. Then the ranking column is created.</p>
+<pre class="r"><code>kids_clean&lt;-kids%&gt;%filter(variable == &quot;PK12ed&quot;)%&gt;%
+  transmute(state, year, inf_adj_perchild=round(inf_adj_perchild,3)*1000)%&gt;%
+  group_by(year)%&gt;%
+  arrange(desc(inf_adj_perchild))%&gt;%
+  mutate(ranking = 1:n())%&gt;%filter(ranking &lt;=15)</code></pre>
+<p>Next, create a stacked bar plot as you would usually do. Normally we would <code>facet_wrap(~year)</code> so that we can get a graph for every year, but to plot the race bar plot, we will stack the bars for every year on a single graph without the faceting.</p>
+<pre class="r"><code>p&lt;-kids_clean%&gt;%ggplot(aes(x = ranking, y = inf_adj_perchild, fill = state))+
+  geom_col(show.legend = FALSE, alpha = 0.6)
+
+p</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<pre class="r"><code>p1&lt;-p+geom_text(aes(y = 0, label = state), family = &quot;Times&quot;)+
+  geom_text(aes(y = inf_adj_perchild, label = as.character(dollar(inf_adj_perchild))))
+
+p1</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-3-2.png" width="672" /></p>
+<p>After running the code above, you will notice that the texts for the value of <code>inf_adj_perchild</code> don’t appear in the position we want them to be. However, if we <code>facet_wrap()</code> by year, these texts do appear in the right place</p>
+<pre class="r"><code>p1+facet_wrap(~year)</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>We then add the Year onto our graph so that the reader could know which year the graph is talking about.</p>
+<pre class="r"><code>p2&lt;-p1+geom_text(aes(label = as.character(year)),x = -15, y = 18000, size = 16, family = &quot;Times&quot;)
+
+p2</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>Notice the position we assigned to the years: we put them in the second quandrant with a high value of y coordinate which is slightly smaller than the maximal value for inf_adj_perchild of all time. Such position would be at the right-bottom corner of the graph after flipping the coordinate and reversing the scales of x-axis. If we run the code above, one might wonder where are the years, I can’t see it. The reason is that since the default range for x axis is positive, we need to <code>expand_limits()</code> to x =-30. After running the code below, you will be able to see the years.</p>
+<pre class="r"><code>p2+facet_wrap(~year)+expand_limits(x = -30)</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>To make the plot more appealing, we need to flip the coordinate. The <code>clip</code> parameter controls if the text would be clipped by the axises. Just take a look at the difference between the following two graphs.</p>
+<pre class="r"><code>p2+coord_flip(clip = &quot;on&quot;)+expand_limits(x = -30)</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code>p2+coord_flip(clip = &quot;off&quot;)+expand_limits(x = -30)</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-7-2.png" width="672" /></p>
+<p>Notice when <code>clip</code> is set to be “on”, the country names actually get cropped, so we need to set <code>clip</code> to be <code>off</code>. In addition, we need to reverse the scale of x since the graph right now needs to be turned up side down.</p>
+<pre class="r"><code>p3&lt;-p2+coord_flip(clip = &quot;off&quot;)+scale_x_reverse()+ylim(0,20000) 
+p3</code></pre>
+<pre><code>## Warning: Removed 274 rows containing missing values (geom_col).</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-8-1.png" width="672" />
+To be honest, if you don’t really care about the aesthetics of the visualization and just want to get a race bar plot, we are actually almost done. All you need to do is to apply the <code>transition_states()</code> function on <code>p3</code>. The function comes from the <code>gganimate</code> package, and the result looks like this.</p>
+<pre class="r"><code>p3+labs(y = &quot;Inflation-adjusted spending on K12 education&quot;,
+        x = &quot;&quot;,
+        title = &quot;The top 15 states with highest inflation-adjusted spending on K12 education in..&quot;)+
+  transition_states(year)</code></pre>
+<p><img src="/talk/2020-09-20-how-to-draw-a-racing-bar-plot_files/figure-html/unnamed-chunk-9-1.gif" /><!-- -->
+If you have read till this part, then congratualations! You already know the basic steps to draw a racing bar plot. Let me review the key steps for you:</p>
+<ol style="list-style-type: decimal">
+<li>Create a ranking column of the categorical variable that you focus on for each year (usually the time unit is a year)</li>
+<li>Draw a stacked bar plot with ranking on x-axis and the numerical variable you are interested in on the y-axix</li>
+<li>Annotate the name for the categorical variables and the values of the numerical variables.</li>
+<li>Annotate the years in the second quadrant (a slightly negative x coordinate and a positive y coordinate with value close to the maximum of the numerical variable you have)</li>
+<li>Flip the coordinate (with <code>on = off</code>) and <code>scale_x_reverse()</code></li>
+<li>Adjust the range for the y axis using <code>ylim()</code>.</li>
+<li>Apply function <code>transition_states(year)</code>.</li>
+</ol>
+<p>In the rest of this tutorial, we will work on the asethetics of our visualization by setting up the</p>
