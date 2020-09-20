@@ -22,15 +22,16 @@ projects: []
 
 
 
+<div id="introduction" class="section level2">
+<h2>1. Introduction</h2>
 <p>Nowadays, more and more data analysis reports begin to include a dynamic racing bar plot in order to show how the values for a type of categorical variable change over time. In this tutorial, we will explore how to construct this popular visualization technique.</p>
-<pre class="r"><code>library(tidyverse)</code></pre>
-<pre><code>## Warning: package &#39;ggplot2&#39; was built under R version 4.0.2</code></pre>
-<pre><code>## Warning: package &#39;tibble&#39; was built under R version 4.0.2</code></pre>
-<pre class="r"><code>library(extrafont)</code></pre>
-<pre><code>## Warning: package &#39;extrafont&#39; was built under R version 4.0.2</code></pre>
-<pre class="r"><code>library(gganimate)</code></pre>
-<pre><code>## Warning: package &#39;gganimate&#39; was built under R version 4.0.2</code></pre>
-<pre class="r"><code>library(scales)
+</div>
+<div id="basic-strucutres" class="section level2">
+<h2>2. Basic strucutres</h2>
+<pre class="r"><code>library(tidyverse)
+library(extrafont)
+library(gganimate)
+library(scales)
 theme_set(theme_light())
 kids &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-15/kids.csv&#39;)</code></pre>
 <p>First, make sure you have the ranking for each country in every year since we will begin by plotting a stacked bar plot with ranking on x-axis and the total spending on y-axis. (More generally, to make the animated bar plot, make sure the variable on y axis is changing overtime for each category such as country in our case.) Also, to simplify the GIF, we only focus on the top 15 countries with the most spending for every year.</p>
@@ -88,4 +89,32 @@ If you have read till this part, then congratualations! You already know the bas
 <li>Adjust the range for the y axis using <code>ylim()</code>.</li>
 <li>Apply function <code>transition_states(year)</code>.</li>
 </ol>
-<p>In the rest of this tutorial, we will work on the asethetics of our visualization by setting up the theme</p>
+</div>
+<div id="asethetic-adjustment" class="section level2">
+<h2>3. Asethetic adjustment</h2>
+<p>In the rest of this tutorial, we will work on the asethetics of our visualization by setting up the theme. For example, we could make the labels of x-axis and y-axis disappear by setting <code>axis.text.x = element_blank()</code> and <code>axis.text.y = element_blank()</code>. Since we have already annoate the countries, we no longer need the title for that axis. However, even though we know the categorical variables lie on the x axis, in order to adjust it in the theme, we actually use <code>axis.title.y = element_blank()</code> since the flipped x-axis is recognized as y-axis by the computer. Finally, just remember to edit the title and subtitle for the graph, and boom! You will see a nice racing bar plot on your screen. To change the size of the graph and the frames (which controls how fast the animation plays), you can use the <code>animate()</code> function.</p>
+<pre class="r"><code>p4&lt;-p3+
+  coord_flip(clip = &quot;off&quot;, expand = TRUE) +
+  scale_x_reverse() +
+  ylim(-10,19000) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;,
+        plot.margin = margin(30, 30, 30, 30),
+        plot.title = element_text(size = 20, family = &quot;Times&quot;, face = &quot;bold&quot;, margin = margin(20,0,5,0)),
+        plot.subtitle = element_text(size = 14, family = &quot;Times&quot;, margin = margin(0,0,15,0)),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size = 12, family = &quot;Times&quot;))  +
+  labs(y = &quot;Spending per individual&quot;,
+       title = &quot;US Spending on K12 Education&quot;,
+       subtitle = &quot;Top 15 States in...&quot;) +
+  transition_states(year)</code></pre>
+<pre><code>## Coordinate system already present. Adding new coordinate system, which will replace the existing one.</code></pre>
+<pre><code>## Scale for &#39;x&#39; is already present. Adding another scale for &#39;x&#39;, which will
+## replace the existing scale.</code></pre>
+<pre><code>## Scale for &#39;y&#39; is already present. Adding another scale for &#39;y&#39;, which will
+## replace the existing scale.</code></pre>
+<pre class="r"><code>animate(p4, nframes = 130, width = 600, height = 900)</code></pre>
+<p><img src="/post/racing-bar-plot/index_files/figure-html/unnamed-chunk-10-1.gif" /><!-- --></p>
+</div>

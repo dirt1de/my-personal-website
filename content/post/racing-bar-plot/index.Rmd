@@ -19,8 +19,12 @@ image:
   preview_only: yes
 projects: []
 ---
+## 1. Introduction
+
 Nowadays, more and more data analysis reports begin to include a dynamic racing bar plot in order to show how the values for a type of categorical variable change over time. In this tutorial, we will explore how to construct this popular visualization technique. 
-```{r,message = FALSE}
+
+## 2. Basic strucutres
+```{r,message = FALSE,warning=FALSE}
 library(tidyverse)
 library(extrafont)
 library(gganimate)
@@ -107,4 +111,28 @@ If you have read till this part, then congratualations! You already know the bas
 6. Adjust the range for the y axis using `ylim()`. 
 7. Apply function `transition_states(year)`.
 
-In the rest of this tutorial, we will work on the asethetics of our visualization by setting up the theme
+## 3. Asethetic adjustment
+
+In the rest of this tutorial, we will work on the asethetics of our visualization by setting up the theme. For example, we could make the labels of x-axis and y-axis disappear by setting ` axis.text.x = element_blank()` and `axis.text.y = element_blank()`. Since we have already annoate the countries, we no longer need the title for that axis. However, even though we know the categorical variables lie on the x axis, in order to adjust it in the theme, we actually use `axis.title.y = element_blank()` since the flipped x-axis is recognized as y-axis by the computer. Finally, just remember to edit the title and subtitle for the graph, and boom! You will see a nice racing bar plot on your screen. To change the size of the graph and the frames (which controls how fast the animation plays), you can use the `animate()` function.
+
+```{r}
+p4<-p3+
+  coord_flip(clip = "off", expand = TRUE) +
+  scale_x_reverse() +
+  ylim(-10,19000) + 
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.margin = margin(30, 30, 30, 30),
+        plot.title = element_text(size = 20, family = "Times", face = "bold", margin = margin(20,0,5,0)),
+        plot.subtitle = element_text(size = 14, family = "Times", margin = margin(0,0,15,0)),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size = 12, family = "Times"))  +
+  labs(y = "Spending per individual",
+       title = "US Spending on K12 Education",
+       subtitle = "Top 15 States in...") +
+  transition_states(year)
+
+animate(p4, nframes = 130, width = 600, height = 900)
+```
