@@ -1,0 +1,468 @@
+---
+title: IMDb rating analysis of "The Office"
+author: Xuxin Zhang
+date: '2020-09-13'
+slug: the-office-imdb-rating-analysis
+categories:
+  - R project
+tags:
+  - sentiment analysis
+  - text mining
+  - tidymodel
+  - machine learning
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-09-13T11:15:52+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: yes
+projects: []
+---
+
+<script src="/rmarkdown-libs/htmlwidgets/htmlwidgets.js"></script>
+<script src="/rmarkdown-libs/plotly-binding/plotly.js"></script>
+<script src="/rmarkdown-libs/typedarray/typedarray.min.js"></script>
+<script src="/rmarkdown-libs/jquery/jquery.min.js"></script>
+<link href="/rmarkdown-libs/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/crosstalk/js/crosstalk.min.js"></script>
+<link href="/rmarkdown-libs/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/plotly-main/plotly-latest.min.js"></script>
+
+
+<div id="introduction" class="section level2">
+<h2>1. Introduction</h2>
+<p>In this project, we would conduct data analysis on TV series “The Office” which is one of my favorite TV series of all time. Trust me, you either hate it or you would really love it.</p>
+<p><img src="/media/theoffice.jpg" /></p>
+<p>Two datasets would be used for our analysis: one contains the rating for each episode of the 9 seasons; the other data contains the writers and directors of each episode. In addition, it includes lines spoken by each character in the TV series.</p>
+<p>This project is broken down into three parts. The first part focuses on the episodes; the second part focuses on the the different characters; in the last part, we will do a lasso regression on the data we have to find out what are the factors that influence the rating of each episode.</p>
+</div>
+<div id="preliminary-data-analysis" class="section level2">
+<h2>2. Preliminary data analysis</h2>
+<div id="season-and-episode-analysis" class="section level3">
+<h3>2.1 Season and episode analysis</h3>
+<p>First, we need to import our data. We can take a look at the two datasets we have.</p>
+<pre class="r"><code>library(tidyverse)
+library(tidytext)
+library(schrute)
+library(ggridges)
+library(plotly)
+library(DT)
+library(tidymodels)
+
+theme_set(theme_classic())
+
+office_script&lt;-schrute::theoffice
+
+ratings_raw &lt;- readr::read_csv(&quot;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-17/office_ratings.csv&quot;)
+
+office_script%&gt;%head(10)</code></pre>
+<pre><code>## # A tibble: 10 x 12
+##    index season episode episode_name director writer character text 
+##    &lt;int&gt;  &lt;int&gt;   &lt;int&gt; &lt;chr&gt;        &lt;chr&gt;    &lt;chr&gt;  &lt;chr&gt;     &lt;chr&gt;
+##  1     1      1       1 Pilot        Ken Kwa… Ricky… Michael   All …
+##  2     2      1       1 Pilot        Ken Kwa… Ricky… Jim       Oh, …
+##  3     3      1       1 Pilot        Ken Kwa… Ricky… Michael   So y…
+##  4     4      1       1 Pilot        Ken Kwa… Ricky… Jim       Actu…
+##  5     5      1       1 Pilot        Ken Kwa… Ricky… Michael   All …
+##  6     6      1       1 Pilot        Ken Kwa… Ricky… Michael   Yes,…
+##  7     7      1       1 Pilot        Ken Kwa… Ricky… Michael   I&#39;ve…
+##  8     8      1       1 Pilot        Ken Kwa… Ricky… Pam       Well…
+##  9     9      1       1 Pilot        Ken Kwa… Ricky… Michael   If y…
+## 10    10      1       1 Pilot        Ken Kwa… Ricky… Pam       What?
+## # … with 4 more variables: text_w_direction &lt;chr&gt;, imdb_rating &lt;dbl&gt;,
+## #   total_votes &lt;int&gt;, air_date &lt;fct&gt;</code></pre>
+<pre class="r"><code>ratings_raw %&gt;%head(10)</code></pre>
+<pre><code>## # A tibble: 10 x 6
+##    season episode title             imdb_rating total_votes air_date  
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;chr&gt;                   &lt;dbl&gt;       &lt;dbl&gt; &lt;date&gt;    
+##  1      1       1 Pilot                     7.6        3706 2005-03-24
+##  2      1       2 Diversity Day             8.3        3566 2005-03-29
+##  3      1       3 Health Care               7.9        2983 2005-04-05
+##  4      1       4 The Alliance              8.1        2886 2005-04-12
+##  5      1       5 Basketball                8.4        3179 2005-04-19
+##  6      1       6 Hot Girl                  7.8        2852 2005-04-26
+##  7      2       1 The Dundies               8.7        3213 2005-09-20
+##  8      2       2 Sexual Harassment         8.2        2736 2005-09-27
+##  9      2       3 Office Olympics           8.4        2742 2005-10-04
+## 10      2       4 The Fire                  8.4        2713 2005-10-11</code></pre>
+<p>As I mentioned in the introduction section, in order to study the season and episodes of “The Office”, the first thing we can do is to visualize the change of rating of each episode across time. With the help of the following graph, we see a clear pattern that the rating arrives the peak around season four and five. Then the rating starts to decline and hit the bottom at season 8. Eventually, with the airing of the finale, the rating starts to climb again. This pattern does go along with my personal watching experience. The show seems to lose some of its spirit after Michael left Scranton.</p>
+<pre class="r"><code>ratings_raw%&gt;%mutate(total_ep = row_number())%&gt;%
+  ggplot(aes(x = total_ep, y = imdb_rating))+
+  geom_point(aes(color = as.factor(season)))+
+  geom_path(aes(color = as.factor(season)))+
+  geom_text(aes(label= title),hjust = 1,check_overlap = TRUE)+
+  theme(legend.position = &quot;null&quot;)+expand_limits(x = -20)+
+  labs(x = &quot;Episode number&quot;, y = &quot;IMDb rating&quot;, title = &quot;How the rating of each episode changes over time&quot;)+geom_smooth()</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>We can take a step further using a ridge plot to show how the rating changes for each season. From this graph, we see that the average rating first goes up, then it goes down.</p>
+<pre class="r"><code>ratings_raw%&gt;%
+  ggplot(aes(y = as.factor(season), 
+             x = imdb_rating,
+             fill = as.factor(season),
+             group = as.factor(season)))+
+  geom_density_ridges(alpha = 0.5, show.legend = FALSE)+
+  expand_limits(y = 10.7)+
+  labs(x = &quot;IMDb rating&quot;, y = &quot;Season number&quot;, title = &quot;IMDb rating distribution for each season&quot;)</code></pre>
+<pre><code>## Picking joint bandwidth of 0.178</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>Since we have all the lines spoken by the characters, we can conduct a sentiment analysis for each of episode.</p>
+<pre class="r"><code>episode_sent&lt;-office_script%&gt;%
+  select(season,episode, episode_name,character,text)%&gt;%
+  unnest_tokens(word,text)%&gt;%anti_join(stop_words)%&gt;%
+  inner_join(get_sentiments(&quot;afinn&quot;))%&gt;%group_by(season,episode, episode_name)%&gt;%
+  summarise(sentiment = sum(value))%&gt;%ungroup()%&gt;%
+  transmute(total_ep = row_number(),episode_name, sentiment,season)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;
+## Joining, by = &quot;word&quot;</code></pre>
+<pre><code>## `summarise()` regrouping output by &#39;season&#39;, &#39;episode&#39; (override with `.groups` argument)</code></pre>
+<pre class="r"><code>episode_sent%&gt;%
+  ggplot(aes(x = total_ep, y = sentiment))+
+  geom_point(aes(color = as.factor(season)))+
+  geom_path(aes(color = as.factor(season)))+
+  geom_text(aes(label= episode_name),hjust = 1,check_overlap = TRUE)+
+  theme(legend.position = &quot;null&quot;)+expand_limits(x = -20)+
+  labs(x = &quot;Episode number&quot;, y = &quot;Sentiment level&quot;, title = &quot;How the sentiment level of each epsiode changes over time&quot;)+geom_smooth()</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>Based on the graph above, we see that the sentiment level gradually descreases, then it increases at the beginning of season 5. If we look closer, we will find that the sentiment level is largely influenced by the episodes with high sentimental level, and this is reflected by the ridge plot below.</p>
+<pre class="r"><code>episode_sent%&gt;%
+  ggplot(aes(y = as.factor(season), 
+             x = sentiment,
+             fill = as.factor(season),
+             group = as.factor(season)))+
+  geom_density_ridges(alpha = 0.5, show.legend = FALSE)+
+  expand_limits(y = 10.7)+
+  labs(x = &quot;Sentiment level&quot;, y = &quot;Season number&quot;, title = &quot;Sentiment level distribution for each season&quot;)</code></pre>
+<pre><code>## Picking joint bandwidth of 20.3</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>Then a natural question to ask is that if there is a relationship between the rating and sentiment level.</p>
+<p>To do so, we will plot the rating of each episode against the corresponding sentiment level, and here is what we get. By adding a regression line, we notice that the relationship between these two factors is with a “W” shape. This means that the rating is sensitive to extreme sentiment level: only if the sentiment level is extremely high or low would the rating be affected.</p>
+<p>Note that there is a small peak in rating around sentiment level of 50. This peak means that as the sentiment level increases gradually, the rating would increase accordingly. However, once a threshold is meet, the rating would actually begin to decrease.</p>
+<pre class="r"><code>library(ggrepel)
+ratings_raw%&gt;%mutate(total_ep = row_number())%&gt;%
+  left_join(episode_sent)%&gt;%
+  ggplot(aes(x = sentiment, y = imdb_rating ))+
+  geom_point(aes(color = as.factor(season)))+
+  geom_smooth()+labs(x = &quot;Sentiment level&quot;, y = &quot;IMDb rating&quot;, title = &quot;The relationship between the sentiment level and the IMDb rating of an episode&quot;, color = &quot;Season&quot;)</code></pre>
+<pre><code>## Joining, by = c(&quot;season&quot;, &quot;total_ep&quot;)</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+</div>
+<div id="character-analysis" class="section level3">
+<h3>2.2 Character analysis</h3>
+<p>Now we can begin our analysis on the characters of the TV series.</p>
+<p>The following graph shows the top 10 people with the most lines in each of the 9 seasons. Based on it, we can see that Michael, Jim, Dwight, and Pam are top 4 people with the most lines. The first place is later overthrowned by Andy and then finally by Dwight.</p>
+<p>(<em>Spoil Alert</em>: The sharp drop of Michael’s line is because he left Scranton after season 7. You will understand why Andy and Dwight become the persons with most lines after you watch the whole TV series.)</p>
+<p>From this single graph, we could tell who are the main characters of the whole series.</p>
+<pre class="r"><code>library(tidytext)
+office_script%&gt;%count(season = as.factor(season), character)%&gt;%
+  group_by(season)%&gt;%top_n(10)%&gt;%
+  ggplot(aes(x = n, y = reorder_within(character, n, season), fill = character))+
+  geom_col()+scale_y_reordered()+facet_wrap(~season,scales = &quot;free_y&quot;)+theme(legend.position = &quot;null&quot;)+labs(x = &quot;Number of lines&quot;, y = &quot;Character name&quot;, title = &quot;Top 10 people with the most lines in each season&quot;)</code></pre>
+<pre><code>## Selecting by n</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>I have creted an interactive line plot to show the changing number of lines for each character more straightforwardly.</p>
+<pre class="r"><code>top_character&lt;-office_script%&gt;%count(character,sort = TRUE)%&gt;%top_n(12)%&gt;%pull(character)</code></pre>
+<pre><code>## Selecting by n</code></pre>
+<pre class="r"><code>ggplotly(office_script%&gt;%count(season, character)%&gt;%
+    filter(character%in%top_character)%&gt;%
+    ggplot(aes(x = season, y = n, color = character))+geom_point()+
+    geom_path()+scale_y_log10()+scale_x_continuous(breaks = 1:9)+labs(x = &quot;Season&quot;, y = &quot;Number of lines&quot;, title = &quot;Changing number of lines for each character&quot;))</code></pre>
+<div id="htmlwidget-1" style="width:672px;height:480px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"data":[{"x":[3,4,5,6,7,8,9],"y":[2.48429983934679,2.26481782300954,2.68124123737559,2.73078227566639,2.74585519517373,3.02118929906994,2.80617997398389],"text":["season: 3<br />n:  305<br />character: Andy","season: 4<br />n:  184<br />character: Andy","season: 5<br />n:  480<br />character: Andy","season: 6<br />n:  538<br />character: Andy","season: 7<br />n:  557<br />character: Andy","season: 8<br />n: 1050<br />character: Andy","season: 9<br />n:  640<br />character: Andy"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(248,118,109,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(248,118,109,1)"}},"hoveron":"points","name":"Andy","legendgroup":"Andy","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(248,118,109,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[1.36172783601759,2.13033376849501,2.29666519026153,2.23299611039215,2.32014628611105,2.13353890837022,2.20411998265592,2.19312459835446,2.58092497567562],"text":["season: 1<br />n:   23<br />character: Angela","season: 2<br />n:  135<br />character: Angela","season: 3<br />n:  198<br />character: Angela","season: 4<br />n:  171<br />character: Angela","season: 5<br />n:  209<br />character: Angela","season: 6<br />n:  136<br />character: Angela","season: 7<br />n:  160<br />character: Angela","season: 8<br />n:  156<br />character: Angela","season: 9<br />n:  381<br />character: Angela"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(222,140,0,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(222,140,0,1)"}},"hoveron":"points","name":"Angela","legendgroup":"Angela","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(222,140,0,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[1.17609125905568,1.79934054945358,1.93449845124357,1.76342799356294,1.86332286012046,1.92427928606188,2.35602585719312,2.47421626407626,2.44404479591808],"text":["season: 1<br />n:   15<br />character: Darryl","season: 2<br />n:   63<br />character: Darryl","season: 3<br />n:   86<br />character: Darryl","season: 4<br />n:   58<br />character: Darryl","season: 5<br />n:   73<br />character: Darryl","season: 6<br />n:   84<br />character: Darryl","season: 7<br />n:  227<br />character: Darryl","season: 8<br />n:  298<br />character: Darryl","season: 9<br />n:  278<br />character: Darryl"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(183,159,0,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(183,159,0,1)"}},"hoveron":"points","name":"Darryl","legendgroup":"Darryl","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(183,159,0,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[2.31806333496276,2.91698004732038,2.91487181754005,2.67669360962487,3.01494034979294,2.90902085421116,2.84757265914211,2.95279244304409,3.02897770520878],"text":["season: 1<br />n:  208<br />character: Dwight","season: 2<br />n:  826<br />character: Dwight","season: 3<br />n:  822<br />character: Dwight","season: 4<br />n:  475<br />character: Dwight","season: 5<br />n: 1035<br />character: Dwight","season: 6<br />n:  811<br />character: Dwight","season: 7<br />n:  704<br />character: Dwight","season: 8<br />n:  897<br />character: Dwight","season: 9<br />n: 1069<br />character: Dwight"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(124,174,0,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(124,174,0,1)"}},"hoveron":"points","name":"Dwight","legendgroup":"Dwight","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(124,174,0,1)","dash":"solid"},"frame":null},{"x":[5,6,7,8,9],"y":[1.72427586960079,2.47421626407626,2.49276038902684,2.59988307207369,2.57978359661681],"text":["season: 5<br />n:   53<br />character: Erin","season: 6<br />n:  298<br />character: Erin","season: 7<br />n:  311<br />character: Erin","season: 8<br />n:  398<br />character: Erin","season: 9<br />n:  380<br />character: Erin"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(0,186,56,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(0,186,56,1)"}},"hoveron":"points","name":"Erin","legendgroup":"Erin","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(0,186,56,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[2.35793484700045,2.87621784059164,2.83884909073726,2.75966784468963,2.92427928606188,2.96754797621886,2.83632411570675,2.90633504180509,2.90200289135073],"text":["season: 1<br />n:  228<br />character: Jim","season: 2<br />n:  752<br />character: Jim","season: 3<br />n:  690<br />character: Jim","season: 4<br />n:  575<br />character: Jim","season: 5<br />n:  840<br />character: Jim","season: 6<br />n:  928<br />character: Jim","season: 7<br />n:  686<br />character: Jim","season: 8<br />n:  806<br />character: Jim","season: 9<br />n:  798<br />character: Jim"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(0,192,139,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(0,192,139,1)"}},"hoveron":"points","name":"Jim","legendgroup":"Jim","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(0,192,139,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[1.38021124171161,2.09342168516224,2.22010808804005,2.10380372095596,2.19865708695442,2.35793484700045,2.38381536598043,2.35793484700045,2.42651126136458],"text":["season: 1<br />n:   24<br />character: Kevin","season: 2<br />n:  124<br />character: Kevin","season: 3<br />n:  166<br />character: Kevin","season: 4<br />n:  127<br />character: Kevin","season: 5<br />n:  158<br />character: Kevin","season: 6<br />n:  228<br />character: Kevin","season: 7<br />n:  242<br />character: Kevin","season: 8<br />n:  228<br />character: Kevin","season: 9<br />n:  267<br />character: Kevin"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(0,191,196,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(0,191,196,1)"}},"hoveron":"points","name":"Kevin","legendgroup":"Kevin","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(0,191,196,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,9],"y":[2.69019608002851,3.26599637049508,3.23527587668705,3.13924921757161,3.31407799177921,3.2973227142053,3.15926633109349,0.301029995663981],"text":["season: 1<br />n:  490<br />character: Michael","season: 2<br />n: 1845<br />character: Michael","season: 3<br />n: 1719<br />character: Michael","season: 4<br />n: 1378<br />character: Michael","season: 5<br />n: 2061<br />character: Michael","season: 6<br />n: 1983<br />character: Michael","season: 7<br />n: 1443<br />character: Michael","season: 9<br />n:    2<br />character: Michael"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(0,180,240,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(0,180,240,1)"}},"hoveron":"points","name":"Michael","legendgroup":"Michael","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(0,180,240,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[1.6232492903979,1.96378782734556,1.78532983501077,1.90848501887865,2.29885307640971,2.24797326636181,2.29885307640971,2.34635297445064,2.46982201597816],"text":["season: 1<br />n:   42<br />character: Oscar","season: 2<br />n:   92<br />character: Oscar","season: 3<br />n:   61<br />character: Oscar","season: 4<br />n:   81<br />character: Oscar","season: 5<br />n:  199<br />character: Oscar","season: 6<br />n:  177<br />character: Oscar","season: 7<br />n:  199<br />character: Oscar","season: 8<br />n:  222<br />character: Oscar","season: 9<br />n:  295<br />character: Oscar"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(97,156,255,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(97,156,255,1)"}},"hoveron":"points","name":"Oscar","legendgroup":"Oscar","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(97,156,255,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[2.22010808804005,2.79169064902012,2.77742682238931,2.64345267648619,2.84073323461181,2.8494194137969,2.78958071216443,2.65896484266443,2.86628733908419],"text":["season: 1<br />n:  166<br />character: Pam","season: 2<br />n:  619<br />character: Pam","season: 3<br />n:  599<br />character: Pam","season: 4<br />n:  440<br />character: Pam","season: 5<br />n:  693<br />character: Pam","season: 6<br />n:  707<br />character: Pam","season: 7<br />n:  616<br />character: Pam","season: 8<br />n:  456<br />character: Pam","season: 9<br />n:  735<br />character: Pam"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(199,124,255,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(199,124,255,1)"}},"hoveron":"points","name":"Pam","legendgroup":"Pam","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(199,124,255,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[1.04139268515823,1.94939000664491,1.99122607569249,1.89762709129044,2.22788670461367,2.13987908640124,2.16435285578444,2.05307844348342,2.10380372095596],"text":["season: 1<br />n:   11<br />character: Phyllis","season: 2<br />n:   89<br />character: Phyllis","season: 3<br />n:   98<br />character: Phyllis","season: 4<br />n:   79<br />character: Phyllis","season: 5<br />n:  169<br />character: Phyllis","season: 6<br />n:  138<br />character: Phyllis","season: 7<br />n:  146<br />character: Phyllis","season: 8<br />n:  113<br />character: Phyllis","season: 9<br />n:  127<br />character: Phyllis"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(245,100,227,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(245,100,227,1)"}},"hoveron":"points","name":"Phyllis","legendgroup":"Phyllis","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(245,100,227,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[1.56820172406699,2.2148438480477,2.15533603746506,2.30749603791321,2.19589965240923,2.09691001300806,2.24797326636181,2.24551266781415,1.20411998265592],"text":["season: 1<br />n:   37<br />character: Ryan","season: 2<br />n:  164<br />character: Ryan","season: 3<br />n:  143<br />character: Ryan","season: 4<br />n:  203<br />character: Ryan","season: 5<br />n:  157<br />character: Ryan","season: 6<br />n:  125<br />character: Ryan","season: 7<br />n:  177<br />character: Ryan","season: 8<br />n:  176<br />character: Ryan","season: 9<br />n:   16<br />character: Ryan"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(255,100,176,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(255,100,176,1)"}},"hoveron":"points","name":"Ryan","legendgroup":"Ryan","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(255,100,176,1)","dash":"solid"},"frame":null}],"layout":{"margin":{"t":43.7625570776256,"r":7.30593607305936,"b":40.1826484018265,"l":48.9497716894977},"plot_bgcolor":"rgba(255,255,255,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187},"title":{"text":"Changing number of lines for each character","font":{"color":"rgba(0,0,0,1)","family":"","size":17.5342465753425},"x":0,"xref":"paper"},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[0.6,9.4],"tickmode":"array","ticktext":["1","2","3","4","5","6","7","8","9"],"tickvals":[1,2,3,4,5,6,7,8,9],"categoryorder":"array","categoryarray":["1","2","3","4","5","6","7","8","9"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.65296803652968,"tickwidth":0.66417600664176,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.689497716895},"tickangle":-0,"showline":true,"linecolor":"rgba(0,0,0,1)","linewidth":0.66417600664176,"showgrid":false,"gridcolor":null,"gridwidth":0,"zeroline":false,"anchor":"y","title":{"text":"Season","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[0.15037759585822,3.46473039158497],"tickmode":"array","ticktext":["10","100","1000"],"tickvals":[1,2,3],"categoryorder":"array","categoryarray":["10","100","1000"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.65296803652968,"tickwidth":0.66417600664176,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.689497716895},"tickangle":-0,"showline":true,"linecolor":"rgba(0,0,0,1)","linewidth":0.66417600664176,"showgrid":false,"gridcolor":null,"gridwidth":0,"zeroline":false,"anchor":"x","title":{"text":"Number of lines","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":null,"line":{"color":null,"width":0,"linetype":[]},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.88976377952756,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.689497716895},"y":0.913385826771654},"annotations":[{"text":"character","x":1.02,"y":1,"showarrow":false,"ax":0,"ay":0,"font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187},"xref":"paper","yref":"paper","textangle":-0,"xanchor":"left","yanchor":"bottom","legendTitle":true}],"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","showSendToCloud":false},"source":"A","attrs":{"33df32ffaec8":{"x":{},"y":{},"colour":{},"type":"scatter"},"33df302be6a0":{"x":{},"y":{},"colour":{}}},"cur_data":"33df32ffaec8","visdat":{"33df32ffaec8":["function (y) ","x"],"33df302be6a0":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+<p>Besides knowing how many lines each characters in different seasons, we can actualy find out what are the words uniquely spoken by the characters with the help of a text mining technique: tf-idf. Based on my familiarity with the tv series, these words are in fact unique to each of the characters.</p>
+<pre class="r"><code>office_script%&gt;%
+  select(season,episode, episode_name,character,text)%&gt;%
+  unnest_tokens(word,text)%&gt;%anti_join(stop_words)%&gt;%
+  count(character,word)%&gt;%filter(character%in%top_character)%&gt;%
+  bind_tf_idf(word,character,n)%&gt;%
+  group_by(character)%&gt;%top_n(10)%&gt;%ggplot(aes(x = tf_idf, y = reorder_within(word, tf_idf, character), fill = character))+geom_col(show.legend = FALSE)+facet_wrap(~character, scales = &quot;free_y&quot;)+scale_y_reordered()+labs(y = &quot;Words&quot;, title = &quot;Unique words spoken by each characters&quot;)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre><code>## Selecting by tf_idf</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>In addition, we can study the sentiment level of each character based on the lines they have. One should note that since differennt characters have varying number of lines, we have to take this fact into consideration when calculating the characters’ sentiment level.</p>
+<pre class="r"><code>character_season_line&lt;-office_script%&gt;%count(season, character)%&gt;%
+    filter(character%in%top_character)
+
+ggplotly(office_script%&gt;%
+  select(season,episode, episode_name,character,text)%&gt;%
+  unnest_tokens(word,text)%&gt;%anti_join(stop_words)%&gt;%
+  inner_join(get_sentiments(&quot;afinn&quot;))%&gt;%group_by(season,character)%&gt;%
+  summarise(sentiment = sum(value))%&gt;%filter(character%in%top_character)%&gt;%
+  left_join(character_season_line)%&gt;%mutate(av_sent = sentiment/n)%&gt;%
+  ggplot(aes(x = season, y = av_sent, color = character))+geom_point()+geom_path()+labs(x = &quot;Season&quot;, y = &quot;Average sentiment level&quot;, title = &quot;Average sentiment level of each characters&quot;))</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;
+## Joining, by = &quot;word&quot;</code></pre>
+<pre><code>## `summarise()` regrouping output by &#39;season&#39; (override with `.groups` argument)</code></pre>
+<pre><code>## Joining, by = c(&quot;season&quot;, &quot;character&quot;)</code></pre>
+<div id="htmlwidget-2" style="width:672px;height:480px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2">{"x":{"data":[{"x":[3,4,5,6,7,8,9],"y":[0.219672131147541,0.375,0.0958333333333333,0.16542750929368,0.122082585278276,0.175238095238095,0.0875],"text":["season: 3<br />av_sent:  0.219672131<br />character: Andy","season: 4<br />av_sent:  0.375000000<br />character: Andy","season: 5<br />av_sent:  0.095833333<br />character: Andy","season: 6<br />av_sent:  0.165427509<br />character: Andy","season: 7<br />av_sent:  0.122082585<br />character: Andy","season: 8<br />av_sent:  0.175238095<br />character: Andy","season: 9<br />av_sent:  0.087500000<br />character: Andy"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(248,118,109,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(248,118,109,1)"}},"hoveron":"points","name":"Andy","legendgroup":"Andy","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(248,118,109,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[-0.304347826086957,0.0888888888888889,-0.0606060606060606,-0.12280701754386,-0.119617224880383,0.00735294117647059,0.2,0.0833333333333333,0.005249343832021],"text":["season: 1<br />av_sent: -0.304347826<br />character: Angela","season: 2<br />av_sent:  0.088888889<br />character: Angela","season: 3<br />av_sent: -0.060606061<br />character: Angela","season: 4<br />av_sent: -0.122807018<br />character: Angela","season: 5<br />av_sent: -0.119617225<br />character: Angela","season: 6<br />av_sent:  0.007352941<br />character: Angela","season: 7<br />av_sent:  0.200000000<br />character: Angela","season: 8<br />av_sent:  0.083333333<br />character: Angela","season: 9<br />av_sent:  0.005249344<br />character: Angela"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(222,140,0,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(222,140,0,1)"}},"hoveron":"points","name":"Angela","legendgroup":"Angela","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(222,140,0,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[0.0666666666666667,-0.19047619047619,0.348837209302326,-0.0172413793103448,-0.0410958904109589,-0.0357142857142857,0.092511013215859,0.194630872483221,0.23021582733813],"text":["season: 1<br />av_sent:  0.066666667<br />character: Darryl","season: 2<br />av_sent: -0.190476190<br />character: Darryl","season: 3<br />av_sent:  0.348837209<br />character: Darryl","season: 4<br />av_sent: -0.017241379<br />character: Darryl","season: 5<br />av_sent: -0.041095890<br />character: Darryl","season: 6<br />av_sent: -0.035714286<br />character: Darryl","season: 7<br />av_sent:  0.092511013<br />character: Darryl","season: 8<br />av_sent:  0.194630872<br />character: Darryl","season: 9<br />av_sent:  0.230215827<br />character: Darryl"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(183,159,0,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(183,159,0,1)"}},"hoveron":"points","name":"Darryl","legendgroup":"Darryl","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(183,159,0,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[0.00961538461538462,0.085956416464891,-0.105839416058394,-0.0926315789473684,-0.0289855072463768,-0.0974106041923551,0.0866477272727273,0.0312151616499443,0.105706267539757],"text":["season: 1<br />av_sent:  0.009615385<br />character: Dwight","season: 2<br />av_sent:  0.085956416<br />character: Dwight","season: 3<br />av_sent: -0.105839416<br />character: Dwight","season: 4<br />av_sent: -0.092631579<br />character: Dwight","season: 5<br />av_sent: -0.028985507<br />character: Dwight","season: 6<br />av_sent: -0.097410604<br />character: Dwight","season: 7<br />av_sent:  0.086647727<br />character: Dwight","season: 8<br />av_sent:  0.031215162<br />character: Dwight","season: 9<br />av_sent:  0.105706268<br />character: Dwight"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(124,174,0,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(124,174,0,1)"}},"hoveron":"points","name":"Dwight","legendgroup":"Dwight","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(124,174,0,1)","dash":"solid"},"frame":null},{"x":[5,6,7,8,9],"y":[0.264150943396226,0.278523489932886,0.279742765273312,0.0829145728643216,0.115789473684211],"text":["season: 5<br />av_sent:  0.264150943<br />character: Erin","season: 6<br />av_sent:  0.278523490<br />character: Erin","season: 7<br />av_sent:  0.279742765<br />character: Erin","season: 8<br />av_sent:  0.082914573<br />character: Erin","season: 9<br />av_sent:  0.115789474<br />character: Erin"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(0,186,56,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(0,186,56,1)"}},"hoveron":"points","name":"Erin","legendgroup":"Erin","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(0,186,56,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[0.37280701754386,0.485372340425532,0.240579710144928,0.274782608695652,0.157142857142857,0.150862068965517,0.15597667638484,0.245657568238213,0.307017543859649],"text":["season: 1<br />av_sent:  0.372807018<br />character: Jim","season: 2<br />av_sent:  0.485372340<br />character: Jim","season: 3<br />av_sent:  0.240579710<br />character: Jim","season: 4<br />av_sent:  0.274782609<br />character: Jim","season: 5<br />av_sent:  0.157142857<br />character: Jim","season: 6<br />av_sent:  0.150862069<br />character: Jim","season: 7<br />av_sent:  0.155976676<br />character: Jim","season: 8<br />av_sent:  0.245657568<br />character: Jim","season: 9<br />av_sent:  0.307017544<br />character: Jim"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(0,192,139,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(0,192,139,1)"}},"hoveron":"points","name":"Jim","legendgroup":"Jim","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(0,192,139,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[-0.375,-0.104838709677419,0.0783132530120482,0.031496062992126,0.0443037974683544,0.37719298245614,0.268595041322314,-0.131578947368421,0.157303370786517],"text":["season: 1<br />av_sent: -0.375000000<br />character: Kevin","season: 2<br />av_sent: -0.104838710<br />character: Kevin","season: 3<br />av_sent:  0.078313253<br />character: Kevin","season: 4<br />av_sent:  0.031496063<br />character: Kevin","season: 5<br />av_sent:  0.044303797<br />character: Kevin","season: 6<br />av_sent:  0.377192982<br />character: Kevin","season: 7<br />av_sent:  0.268595041<br />character: Kevin","season: 8<br />av_sent: -0.131578947<br />character: Kevin","season: 9<br />av_sent:  0.157303371<br />character: Kevin"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(0,191,196,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(0,191,196,1)"}},"hoveron":"points","name":"Kevin","legendgroup":"Kevin","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(0,191,196,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,9],"y":[0.197959183673469,0.36639566395664,0.159976730657359,0.235123367198839,0.207666181465308,0.101865859808371,0.133056133056133,0.5],"text":["season: 1<br />av_sent:  0.197959184<br />character: Michael","season: 2<br />av_sent:  0.366395664<br />character: Michael","season: 3<br />av_sent:  0.159976731<br />character: Michael","season: 4<br />av_sent:  0.235123367<br />character: Michael","season: 5<br />av_sent:  0.207666181<br />character: Michael","season: 6<br />av_sent:  0.101865860<br />character: Michael","season: 7<br />av_sent:  0.133056133<br />character: Michael","season: 9<br />av_sent:  0.500000000<br />character: Michael"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(0,180,240,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(0,180,240,1)"}},"hoveron":"points","name":"Michael","legendgroup":"Michael","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(0,180,240,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[0.285714285714286,-0.108695652173913,0.245901639344262,0.246913580246914,-0.0100502512562814,0.0395480225988701,0.125628140703518,0.193693693693694,-0.0745762711864407],"text":["season: 1<br />av_sent:  0.285714286<br />character: Oscar","season: 2<br />av_sent: -0.108695652<br />character: Oscar","season: 3<br />av_sent:  0.245901639<br />character: Oscar","season: 4<br />av_sent:  0.246913580<br />character: Oscar","season: 5<br />av_sent: -0.010050251<br />character: Oscar","season: 6<br />av_sent:  0.039548023<br />character: Oscar","season: 7<br />av_sent:  0.125628141<br />character: Oscar","season: 8<br />av_sent:  0.193693694<br />character: Oscar","season: 9<br />av_sent: -0.074576271<br />character: Oscar"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(97,156,255,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(97,156,255,1)"}},"hoveron":"points","name":"Oscar","legendgroup":"Oscar","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(97,156,255,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[0.150602409638554,0.227786752827141,0.330550918196995,0.320454545454545,0.151515151515152,0.151343705799151,0.277597402597403,0.258771929824561,0.333333333333333],"text":["season: 1<br />av_sent:  0.150602410<br />character: Pam","season: 2<br />av_sent:  0.227786753<br />character: Pam","season: 3<br />av_sent:  0.330550918<br />character: Pam","season: 4<br />av_sent:  0.320454545<br />character: Pam","season: 5<br />av_sent:  0.151515152<br />character: Pam","season: 6<br />av_sent:  0.151343706<br />character: Pam","season: 7<br />av_sent:  0.277597403<br />character: Pam","season: 8<br />av_sent:  0.258771930<br />character: Pam","season: 9<br />av_sent:  0.333333333<br />character: Pam"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(199,124,255,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(199,124,255,1)"}},"hoveron":"points","name":"Pam","legendgroup":"Pam","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(199,124,255,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[-0.0909090909090909,0.179775280898876,0.285714285714286,-0.10126582278481,0.00591715976331361,0.166666666666667,0.458904109589041,0.398230088495575,0.125984251968504],"text":["season: 1<br />av_sent: -0.090909091<br />character: Phyllis","season: 2<br />av_sent:  0.179775281<br />character: Phyllis","season: 3<br />av_sent:  0.285714286<br />character: Phyllis","season: 4<br />av_sent: -0.101265823<br />character: Phyllis","season: 5<br />av_sent:  0.005917160<br />character: Phyllis","season: 6<br />av_sent:  0.166666667<br />character: Phyllis","season: 7<br />av_sent:  0.458904110<br />character: Phyllis","season: 8<br />av_sent:  0.398230088<br />character: Phyllis","season: 9<br />av_sent:  0.125984252<br />character: Phyllis"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(245,100,227,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(245,100,227,1)"}},"hoveron":"points","name":"Phyllis","legendgroup":"Phyllis","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(245,100,227,1)","dash":"solid"},"frame":null},{"x":[1,2,3,4,5,6,7,8,9],"y":[0.567567567567568,0.268292682926829,0.118881118881119,0.0985221674876847,0.414012738853503,0.104,0.372881355932203,0.176136363636364,0.125],"text":["season: 1<br />av_sent:  0.567567568<br />character: Ryan","season: 2<br />av_sent:  0.268292683<br />character: Ryan","season: 3<br />av_sent:  0.118881119<br />character: Ryan","season: 4<br />av_sent:  0.098522167<br />character: Ryan","season: 5<br />av_sent:  0.414012739<br />character: Ryan","season: 6<br />av_sent:  0.104000000<br />character: Ryan","season: 7<br />av_sent:  0.372881356<br />character: Ryan","season: 8<br />av_sent:  0.176136364<br />character: Ryan","season: 9<br />av_sent:  0.125000000<br />character: Ryan"],"type":"scatter","mode":"markers+lines","marker":{"autocolorscale":false,"color":"rgba(255,100,176,1)","opacity":1,"size":5.66929133858268,"symbol":"circle","line":{"width":1.88976377952756,"color":"rgba(255,100,176,1)"}},"hoveron":"points","name":"Ryan","legendgroup":"Ryan","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","line":{"width":1.88976377952756,"color":"rgba(255,100,176,1)","dash":"solid"},"frame":null}],"layout":{"margin":{"t":43.7625570776256,"r":7.30593607305936,"b":40.1826484018265,"l":48.9497716894977},"plot_bgcolor":"rgba(255,255,255,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187},"title":{"text":"Average sentiment level of each characters","font":{"color":"rgba(0,0,0,1)","family":"","size":17.5342465753425},"x":0,"xref":"paper"},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[0.6,9.4],"tickmode":"array","ticktext":["2.5","5.0","7.5"],"tickvals":[2.5,5,7.5],"categoryorder":"array","categoryarray":["2.5","5.0","7.5"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.65296803652968,"tickwidth":0.66417600664176,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.689497716895},"tickangle":-0,"showline":true,"linecolor":"rgba(0,0,0,1)","linewidth":0.66417600664176,"showgrid":false,"gridcolor":null,"gridwidth":0,"zeroline":false,"anchor":"y","title":{"text":"Season","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-0.422128378378378,0.614695945945946],"tickmode":"array","ticktext":["-0.4","-0.2","0.0","0.2","0.4","0.6"],"tickvals":[-0.4,-0.2,0,0.2,0.4,0.6],"categoryorder":"array","categoryarray":["-0.4","-0.2","0.0","0.2","0.4","0.6"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.65296803652968,"tickwidth":0.66417600664176,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.689497716895},"tickangle":-0,"showline":true,"linecolor":"rgba(0,0,0,1)","linewidth":0.66417600664176,"showgrid":false,"gridcolor":null,"gridwidth":0,"zeroline":false,"anchor":"x","title":{"text":"Average sentiment level","font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":null,"line":{"color":null,"width":0,"linetype":[]},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.88976377952756,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.689497716895},"y":0.913385826771654},"annotations":[{"text":"character","x":1.02,"y":1,"showarrow":false,"ax":0,"ay":0,"font":{"color":"rgba(0,0,0,1)","family":"","size":14.6118721461187},"xref":"paper","yref":"paper","textangle":-0,"xanchor":"left","yanchor":"bottom","legendTitle":true}],"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","showSendToCloud":false},"source":"A","attrs":{"33df76fc9bd7":{"x":{},"y":{},"colour":{},"type":"scatter"},"33df425b7d48":{"x":{},"y":{},"colour":{}}},"cur_data":"33df76fc9bd7","visdat":{"33df76fc9bd7":["function (y) ","x"],"33df425b7d48":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+<p>From the graph above, we can see that Angela and Dwight are the two persons with the most negative sentiment level in the first 5 seasons, which is true since these two are pretty mean to others.</p>
+</div>
+</div>
+<div id="lasso-regression" class="section level2">
+<h2>3. Lasso regression</h2>
+<p>Before we proceed to apply lasso regression to our data, we need to further clean the data we have.</p>
+<pre class="r"><code>remove_regex &lt;- &quot;[:punct:]|[:digit:]|parts |part |the |and&quot;
+
+office_ratings &lt;- ratings_raw %&gt;%
+  transmute(
+    episode_name = str_to_lower(title),
+    episode_name = str_remove_all(episode_name, remove_regex),
+    episode_name = str_trim(episode_name),
+    imdb_rating
+  )
+
+office_info &lt;- schrute::theoffice %&gt;%
+  mutate(
+    season = as.numeric(season),
+    episode = as.numeric(episode),
+    episode_name = str_to_lower(episode_name),
+    episode_name = str_remove_all(episode_name, remove_regex),
+    episode_name = str_trim(episode_name)
+  ) %&gt;%
+  select(season, episode, episode_name, director, writer, character)</code></pre>
+<pre class="r"><code>actors&lt;-office_info%&gt;%count(episode_name, character)%&gt;%
+    add_count(character)%&gt;%
+    filter(nn &gt;800)%&gt;%
+    select(-nn)%&gt;%
+    pivot_wider(names_from = character, values_from = n, values_fill = 0)</code></pre>
+<pre><code>## Using `n` as weighting variable
+## ℹ Quiet this message with `wt = n` or count rows with `wt = 1`</code></pre>
+<pre><code>## Storing counts in `nn`, as `n` already present in input
+## ℹ Use `name = &quot;new_name&quot;` to pick a new name.</code></pre>
+<pre class="r"><code>actors</code></pre>
+<pre><code>## # A tibble: 185 x 16
+##    episode_name  Andy Angela Darryl Dwight   Jim Kelly Kevin Michael Oscar   Pam
+##    &lt;chr&gt;        &lt;int&gt;  &lt;int&gt;  &lt;int&gt;  &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt;   &lt;int&gt; &lt;int&gt; &lt;int&gt;
+##  1 a benihana …    28     37      3     61    44     5    14     108     1    57
+##  2 aarm            44     39     30     87    89     0    30       0    28    34
+##  3 after hours     20     11     14     60    55     8     4       0    10    15
+##  4 alliance         0      7      0     47    49     0     3      68    14    22
+##  5 angry y         53      7      5     16    19    13     9       0     7    29
+##  6 baby shower     13     13      9     35    27     2     4      79     3    25
+##  7 back from v…     3      4      6     22    25     0     5      70     0    33
+##  8 banker           1      2      0     17     0     0     2      44     0     5
+##  9 basketball       0      3     15     25    21     0     1     104     2    14
+## 10 beach games     18      8      0     38    22     9     5     105     5    23
+## # … with 175 more rows, and 5 more variables: Phyllis &lt;int&gt;, Ryan &lt;int&gt;,
+## #   Toby &lt;int&gt;, Erin &lt;int&gt;, Jan &lt;int&gt;</code></pre>
+<pre class="r"><code>creators &lt;- office_info%&gt;%distinct(episode_name,director,writer)%&gt;%
+  separate_rows(writer,sep = &quot;;&quot;)%&gt;%
+  pivot_longer(director:writer,names_to = &quot;job&quot;,values_to = &quot;name&quot;)%&gt;%
+  add_count(name)%&gt;%filter(n&gt;10)%&gt;%mutate(count = 1)%&gt;%
+  distinct(episode_name,name,count)%&gt;%
+  pivot_wider(names_from = name,values_from = count, values_fill = 0)
+
+creators</code></pre>
+<pre><code>## # A tibble: 135 x 14
+##    episode_name `Ken Kwapis` `Greg Daniels` `B.J. Novak` `Paul Lieberste…
+##    &lt;chr&gt;               &lt;dbl&gt;          &lt;dbl&gt;        &lt;dbl&gt;            &lt;dbl&gt;
+##  1 pilot                   1              1            0                0
+##  2 diversity d…            1              0            1                0
+##  3 health care             0              0            0                1
+##  4 basketball              0              1            0                0
+##  5 hot girl                0              0            0                0
+##  6 dundies                 0              1            0                0
+##  7 sexual hara…            1              0            1                0
+##  8 office olym…            0              0            0                0
+##  9 fire                    1              0            1                0
+## 10 halloween               0              1            0                0
+## # … with 125 more rows, and 9 more variables: `Mindy Kaling` &lt;dbl&gt;, `Paul
+## #   Feig` &lt;dbl&gt;, `Gene Stupnitsky` &lt;dbl&gt;, `Lee Eisenberg` &lt;dbl&gt;, `Jennifer
+## #   Celotta` &lt;dbl&gt;, `Randall Einhorn` &lt;dbl&gt;, `Brent Forrester` &lt;dbl&gt;, `Jeffrey
+## #   Blitz` &lt;dbl&gt;, `Justin Spitzer` &lt;dbl&gt;</code></pre>
+<p>With the help of the two chuncks of code above, we now have two new datasets at hand:<code>actors</code> and <code>creators</code>. The <code>actors</code> data shows the lines each characters have in a single episode, and the <code>creators</code> shows the writers and directors for each episode. Next, we join all the datasets we have into a single one.</p>
+<pre class="r"><code>rating_clean &lt;- ratings_raw%&gt;%transmute(season, episode,episode_name = title, rating = imdb_rating)%&gt;%
+    mutate(
+    episode_name = str_to_lower(episode_name),
+    episode_name = str_remove_all(episode_name, remove_regex),
+    episode_name = str_trim(episode_name))
+
+staff&lt;-rating_clean%&gt;%
+    inner_join(creators)%&gt;%
+    inner_join(actors)</code></pre>
+<pre><code>## Joining, by = &quot;episode_name&quot;
+## Joining, by = &quot;episode_name&quot;</code></pre>
+<pre class="r"><code>staff</code></pre>
+<pre><code>## # A tibble: 134 x 32
+##    season episode episode_name rating `Ken Kwapis` `Greg Daniels` `B.J. Novak`
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;chr&gt;         &lt;dbl&gt;        &lt;dbl&gt;          &lt;dbl&gt;        &lt;dbl&gt;
+##  1      1       1 pilot           7.6            1              1            0
+##  2      1       2 diversity d…    8.3            1              0            1
+##  3      1       3 health care     7.9            0              0            0
+##  4      1       5 basketball      8.4            0              1            0
+##  5      1       6 hot girl        7.8            0              0            0
+##  6      2       1 dundies         8.7            0              1            0
+##  7      2       2 sexual hara…    8.2            1              0            1
+##  8      2       3 office olym…    8.4            0              0            0
+##  9      2       4 fire            8.4            1              0            1
+## 10      2       5 halloween       8.2            0              1            0
+## # … with 124 more rows, and 25 more variables: `Paul Lieberstein` &lt;dbl&gt;, `Mindy
+## #   Kaling` &lt;dbl&gt;, `Paul Feig` &lt;dbl&gt;, `Gene Stupnitsky` &lt;dbl&gt;, `Lee
+## #   Eisenberg` &lt;dbl&gt;, `Jennifer Celotta` &lt;dbl&gt;, `Randall Einhorn` &lt;dbl&gt;, `Brent
+## #   Forrester` &lt;dbl&gt;, `Jeffrey Blitz` &lt;dbl&gt;, `Justin Spitzer` &lt;dbl&gt;,
+## #   Andy &lt;int&gt;, Angela &lt;int&gt;, Darryl &lt;int&gt;, Dwight &lt;int&gt;, Jim &lt;int&gt;,
+## #   Kelly &lt;int&gt;, Kevin &lt;int&gt;, Michael &lt;int&gt;, Oscar &lt;int&gt;, Pam &lt;int&gt;,
+## #   Phyllis &lt;int&gt;, Ryan &lt;int&gt;, Toby &lt;int&gt;, Erin &lt;int&gt;, Jan &lt;int&gt;</code></pre>
+<p>Now we are ready to build a machine learning model to study the dataset <code>staff</code> using the package <code>tidymodel</code>.</p>
+<p>First we split our data into a training and testing one. In order to later tune the lasso regression model, we create a bootstraps object <code>staff_boot</code>.</p>
+<pre class="r"><code>set.seed(1234)
+staff_split&lt;-initial_split(staff,strata = season)
+staff_train &lt;- training(staff_split)
+staff_test &lt;- testing(staff_split)
+
+set.seed(123)
+staff_boot&lt;-bootstraps(staff_train, strata = season)</code></pre>
+<p>With the help of <code>recipe</code> function, we could do some feature engineering to preprocess the data.</p>
+<pre class="r"><code>staff_recipe&lt;-recipe(rating~., data = staff_train)%&gt;%
+  update_role(episode_name, new_role = &quot;ID&quot;)%&gt;%
+  step_zv(all_predictors())%&gt;%
+  step_corr(all_predictors())%&gt;%
+  step_normalize(all_predictors())
+
+prep(staff_recipe)%&gt;%juice()</code></pre>
+<pre><code>## # A tibble: 102 x 31
+##    season episode episode_name `Ken Kwapis` `Greg Daniels` `B.J. Novak`
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;               &lt;dbl&gt;          &lt;dbl&gt;        &lt;dbl&gt;
+##  1  -1.73  -1.54  pilot               3.02           2.49        -0.397
+##  2  -1.73  -1.40  diversity d…        3.02          -0.397        2.49 
+##  3  -1.73  -1.27  health care        -0.328         -0.397       -0.397
+##  4  -1.28  -1.54  dundies            -0.328          2.49        -0.397
+##  5  -1.28  -1.40  sexual hara…        3.02          -0.397        2.49 
+##  6  -1.28  -1.27  office olym…       -0.328         -0.397       -0.397
+##  7  -1.28  -0.991 halloween          -0.328          2.49        -0.397
+##  8  -1.28  -0.854 fight               3.02          -0.397       -0.397
+##  9  -1.28  -0.717 client             -0.328         -0.397       -0.397
+## 10  -1.28  -0.579 performance…       -0.328         -0.397       -0.397
+## # … with 92 more rows, and 25 more variables: `Paul Lieberstein` &lt;dbl&gt;, `Mindy
+## #   Kaling` &lt;dbl&gt;, `Paul Feig` &lt;dbl&gt;, `Lee Eisenberg` &lt;dbl&gt;, `Jennifer
+## #   Celotta` &lt;dbl&gt;, `Randall Einhorn` &lt;dbl&gt;, `Brent Forrester` &lt;dbl&gt;, `Jeffrey
+## #   Blitz` &lt;dbl&gt;, `Justin Spitzer` &lt;dbl&gt;, Andy &lt;dbl&gt;, Angela &lt;dbl&gt;,
+## #   Darryl &lt;dbl&gt;, Dwight &lt;dbl&gt;, Jim &lt;dbl&gt;, Kelly &lt;dbl&gt;, Kevin &lt;dbl&gt;,
+## #   Michael &lt;dbl&gt;, Oscar &lt;dbl&gt;, Pam &lt;dbl&gt;, Phyllis &lt;dbl&gt;, Ryan &lt;dbl&gt;,
+## #   Toby &lt;dbl&gt;, Erin &lt;dbl&gt;, Jan &lt;dbl&gt;, rating &lt;dbl&gt;</code></pre>
+<p>Then we set up our first rough machine learning model. Based on the result, we see that with the penal equals to 0.1, Jim, Michael, Greg Daniels, and Jan are the most important factors in deciding the rating of a single episode.</p>
+<pre class="r"><code>library(vip)</code></pre>
+<pre><code>## Warning: package &#39;vip&#39; was built under R version 4.0.2</code></pre>
+<pre><code>## 
+## Attaching package: &#39;vip&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:utils&#39;:
+## 
+##     vi</code></pre>
+<pre class="r"><code>set.seed(2345)
+
+lasso_model &lt;- linear_reg(penalty = 0.1, mixture = 1)%&gt;%
+    set_engine(&quot;glmnet&quot;)
+
+staff_wf&lt;-workflow()%&gt;%
+  add_recipe(staff_recipe)%&gt;%
+  add_model(lasso_model)
+
+staff_wf%&gt;%fit(staff_train)%&gt;%pull_workflow_fit()%&gt;%
+  tidy()%&gt;%arrange(desc(estimate))</code></pre>
+<pre><code>## Warning: package &#39;glmnet&#39; was built under R version 4.0.2</code></pre>
+<pre><code>## Loading required package: Matrix</code></pre>
+<pre><code>## 
+## Attaching package: &#39;Matrix&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:tidyr&#39;:
+## 
+##     expand, pack, unpack</code></pre>
+<pre><code>## Loaded glmnet 4.0-2</code></pre>
+<pre><code>## # A tibble: 30 x 3
+##    term             estimate penalty
+##    &lt;chr&gt;               &lt;dbl&gt;   &lt;dbl&gt;
+##  1 (Intercept)       8.37        0.1
+##  2 Jim               0.106       0.1
+##  3 Michael           0.0666      0.1
+##  4 Greg Daniels      0.0180      0.1
+##  5 Jan               0.00399     0.1
+##  6 season            0           0.1
+##  7 episode           0           0.1
+##  8 Ken Kwapis        0           0.1
+##  9 B.J. Novak        0           0.1
+## 10 Paul Lieberstein  0           0.1
+## # … with 20 more rows</code></pre>
+<p>Now we are going to tune the penalty parameter.</p>
+<pre class="r"><code>tune_model &lt;- linear_reg(penalty = tune())%&gt;%set_engine(&quot;glmnet&quot;)
+
+lambda_grid &lt;- grid_regular(penalty(), levels = 50)
+
+tune_grid&lt;-tune_grid(workflow()%&gt;%add_recipe(staff_recipe)%&gt;%add_model(tune_model),
+          resamples = staff_boot,
+          grid = lambda_grid)</code></pre>
+<p>Now we have two evaluation criteria (rmse and rsq) for the penalties.</p>
+<pre class="r"><code>tune_grid%&gt;%collect_metrics()</code></pre>
+<pre><code>## # A tibble: 100 x 7
+##     penalty .metric .estimator   mean     n std_err .config
+##       &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;       &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;  
+##  1 1.00e-10 rmse    standard   0.625     25  0.0119 Model01
+##  2 1.00e-10 rsq     standard   0.0679    25  0.0114 Model01
+##  3 1.60e-10 rmse    standard   0.625     25  0.0119 Model02
+##  4 1.60e-10 rsq     standard   0.0679    25  0.0114 Model02
+##  5 2.56e-10 rmse    standard   0.625     25  0.0119 Model03
+##  6 2.56e-10 rsq     standard   0.0679    25  0.0114 Model03
+##  7 4.09e-10 rmse    standard   0.625     25  0.0119 Model04
+##  8 4.09e-10 rsq     standard   0.0679    25  0.0114 Model04
+##  9 6.55e-10 rmse    standard   0.625     25  0.0119 Model05
+## 10 6.55e-10 rsq     standard   0.0679    25  0.0114 Model05
+## # … with 90 more rows</code></pre>
+<p>We can visualize the two metrics in the following way:</p>
+<pre class="r"><code>tune_grid%&gt;%collect_metrics()%&gt;%
+    ggplot(aes(x = penalty, y = mean, color = .metric))+
+    geom_point()+
+    geom_line()+facet_wrap(~.metric,scales = &quot;free&quot;,ncol = 1)+scale_x_log10()</code></pre>
+<pre><code>## Warning: Removed 3 rows containing missing values (geom_point).</code></pre>
+<pre><code>## Warning: Removed 3 row(s) containing missing values (geom_path).</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<p>With the following code, we are able to select the best value for the penalty.</p>
+<pre class="r"><code>best_penalty&lt;-tune_grid%&gt;%select_best(&quot;rmse&quot;,maximize = FALSE)</code></pre>
+<pre><code>## Warning: The `maximize` argument is no longer needed. This value was ignored.</code></pre>
+<pre class="r"><code>best_penalty</code></pre>
+<pre><code>## # A tibble: 1 x 2
+##   penalty .config
+##     &lt;dbl&gt; &lt;chr&gt;  
+## 1  0.0954 Model45</code></pre>
+<p>With the best penalty at hand, we are ready to update our first rough model with this new parameter.</p>
+<pre class="r"><code>final_lasso&lt;-finalize_workflow(workflow()%&gt;%add_recipe(staff_recipe)%&gt;%add_model(tune_model),
+               best_penalty)
+final_lasso</code></pre>
+<pre><code>## ══ Workflow ═══════════════════════════════════════════════════════════════════════════════════════
+## Preprocessor: Recipe
+## Model: linear_reg()
+## 
+## ── Preprocessor ───────────────────────────────────────────────────────────────────────────────────
+## 3 Recipe Steps
+## 
+## ● step_zv()
+## ● step_corr()
+## ● step_normalize()
+## 
+## ── Model ──────────────────────────────────────────────────────────────────────────────────────────
+## Linear Regression Model Specification (regression)
+## 
+## Main Arguments:
+##   penalty = 0.0954095476349996
+## 
+## Computational engine: glmnet</code></pre>
+<p>Finally, we can use the following code to visualize the importance of each factors. We can see that Greg Daniels, Jim, episode, and Michael are the top 4 factors with greatest importance. That is to say, episodes directed by Greg Daniels and with more lines for Jim and Michael would tend to have higher rating. However, we also notice that Kelly, season, Erin, and Randall Einhorn have the strongest negative influence on the rating. I’m a little surprised at the result since Erin is my favorite characters in the TV series.</p>
+<pre class="r"><code>final_lasso%&gt;%fit(staff_train)%&gt;%pull_workflow_fit()%&gt;%vi(lamda = best_penalty$penalty)%&gt;%
+  mutate(Importance = case_when(Sign == &quot;POS&quot;~Importance,
+                                       TRUE~(-1)*Importance))%&gt;%
+  ggplot(aes(x = Importance, y = reorder(Variable, Importance), color = Sign))+
+  geom_point(size = 2)+
+  geom_segment(aes(x = 0, xend = Importance, y = Variable, yend = Variable),size = 1.5)+
+  labs(x = &quot;Importance&quot;, y = &quot;Variable&quot;, title = &quot;The Variable of Importance plot&quot;)</code></pre>
+<p><img src="/post/theoffice/index_files/figure-html/unnamed-chunk-23-1.png" width="672" /></p>
+<p>Finally, we can fit our data to the testing data we created earlier, and here is the fitting result.</p>
+<pre class="r"><code>final_lasso%&gt;%last_fit(staff_split)%&gt;%collect_metrics()</code></pre>
+<pre><code>## # A tibble: 2 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard       0.429
+## 2 rsq     standard       0.121</code></pre>
+</div>
