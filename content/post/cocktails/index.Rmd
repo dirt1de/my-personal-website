@@ -70,6 +70,6 @@ boston_cocktails_clean
 ```
 
 
-<iframe src="https://xuxinzhang.shinyapps.io/cocktails_shiny_app/"></iframe>
+<iframe height="800" width="100%" frameborder="no" src="https://xuxinzhang.shinyapps.io/cocktails_shiny_app/"></iframe>
 
 
