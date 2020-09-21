@@ -23,26 +23,84 @@ output:
 runtime: shiny
 projects: []
 ---
+## 1. Introduction
+This project explore the recipes for cocktails. Our main focus would be put on the ingredients of different types of cocktails. We will create a word cloud plot to show how frequently the ingredients appear in the recipes and an interactive bar plot to show the composition of certain type of cocktail drinks.
 
+## 2. Data analysis
+First, we need to import the two datasets we are going to use.
 ```{r,warning=FALSE, message=FALSE}
 library(tidyverse)
-library(plotly)
-library(shiny)
+library(DT)
 theme_set(theme_light())
-cocktails <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/cocktails.csv')
-boston_cocktails <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/boston_cocktails.csv')
+tuesdata <- tidytuesdayR::tt_load('2020-05-26')
+
+cocktails<-tuesdata$cocktails
+boston_cocktails <-tuesdata$boston_cocktails
 
 ```
 
-```{r}
+After importing the data, I wonder what is the difference between these two, so I calculate the number of drinks incorporated in them and find out that the `boston_cocktails` contains more type of drinks. In addition, notice that the `boston_cocktails` has a more uniform units for the measure column, which would facilitate our construction of the interactive bar plot. Thus, we will stick with the boston datasets for the rest of the project.
+
+```{r,warning=FALSE}
 library(stringr)
 
 cocktails%>%distinct(drink)
+cocktails%>%datatable()
 
 boston_cocktails%>%distinct(name)
-
-boston_cocktails%>%count(category)
+boston_cocktails%>%datatable()
 ```
+
+Next, we will find out the ingredients used the most in the recipes. The following is a list of the top 10 ingredients used to create cocktails. 
+
+```{r}
+boston_cocktails%>%count(ingredient, sort = TRUE)%>%head(10)%>%
+  ggplot(aes(x = reorder(ingredient,n), y = n, color = ingredient))+
+  geom_point(aes(size = n), alpha = 0.6)+
+  geom_segment(aes(x=reorder(ingredient,n),
+                   xend = reorder(ingredient,n), 
+                   y = 0, yend = n,size = n), alpha = 0.6)+
+  ylim(0,180)+theme_minimal()+
+  theme(axis.text.x = element_text(vjust = 0.8),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "null")+
+  labs(x = "Ingredient", y = "Count",
+       title = "Top 10 ingredients used in cocktail recipes")+
+  coord_polar()
+```
+
+We can visualize in another way by drawing a word cloud plot.
+
+![](/media/cocktail.png)
+
+
+I also wonder which category has the most ingredients on average. We start by finding out how many types of cocktails are there. Based on the list below, we can see there are altogether 11 types of drinks. 
+
+```{r}
+boston_cocktails%>%count(category,sort = TRUE)%>%datatable()
+```
+
+Then we summarize the average number of ingredients for each type. We can take a look at which cocktail has the most ingredients. As the table shows, the greatest number of ingredients is 6, and there are quite a lot of drinks which are made from 6 ingredients.  
+
+```{r}
+number_ingredient<-boston_cocktails%>%group_by(category,name)%>%summarise(num_ing = max(ingredient_number))
+
+number_ingredient%>%arrange(desc(num_ing))%>%datatable()
+```
+
+After knowing this, we can draw boxplot to show the distribution of number of ingredients for each type.
+
+```{r}
+number_ingredient%>%
+  ggplot(aes(x = num_ing, y = reorder(category, num_ing)))+
+  geom_boxplot()+
+  labs(x = "Number of ingredients", 
+       y ="Category of cocktails", 
+       title = "The distribution of number of ingredients for different categories ")+
+  xlim(0,7)
+```
+
 
 ```{r}
 # find out how many types of fractions are there
@@ -68,6 +126,8 @@ boston_cocktails_clean<-boston_cocktails%>%
 
 boston_cocktails_clean
 ```
+
+
 
 
 <iframe height="800" width="100%" frameborder="no" src="https://xuxinzhang.shinyapps.io/cocktails_shiny_app/"></iframe>
