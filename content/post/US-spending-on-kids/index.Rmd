@@ -1,0 +1,146 @@
+---
+title: How does the US spending on kids change?
+author: Xuxin Zhang
+date: '2020-09-22'
+slug: post
+categories:
+  - R project
+tags:
+  - data visualization
+  - gganimate
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-09-22T16:33:37+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+
+```{r,message=FALSE,warning=FALSE}
+library(tidyverse)
+kids <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-15/kids.csv')
+theme_set(theme_light())
+```
+
+```{r}
+library(gganimate)
+
+kids%>%filter(variable=="pubhealth")%>%
+  ggplot(aes(x = year, y = inf_adj, group = state))+
+  geom_point( alpha = 0.5)+geom_path(alpha = 0.3)+
+  scale_y_log10()+
+  geom_text(aes(label = state, x = year, y = inf_adj),
+            family = "Times",angle = 30,check_overlap = TRUE)+
+  transition_reveal(year)
+```
+
+```{r}
+top_states_unemp<-kids%>%filter(variable=="unemp")%>%
+  filter(year ==2012)%>%
+  arrange(desc(inf_adj))%>%
+  head(3)%>%pull(state)
+
+bottom_states_unemp<-kids%>%filter(variable=="unemp")%>%
+  filter(year ==2012)%>%
+  arrange(inf_adj)%>%
+  head(3)%>%pull(state)
+
+
+kids%>%filter(variable=="unemp")%>%
+  mutate(top_bottom = case_when(state%in%top_states_unemp~"Top",
+                                state%in%bottom_states_unemp~"Bottom",
+                                TRUE~"Others"),
+         state_plot =case_when(state%in%top_states_unemp~state,
+                                    state%in%bottom_states_unemp~state,
+                                    TRUE~""))%>%
+  ggplot(aes(x = year, y = inf_adj,group = state))+
+  geom_point(aes(size = top_bottom,color = top_bottom), alpha = 0.5,show.legend = FALSE)+
+  geom_path(aes(size = top_bottom,color = top_bottom),show.legend = FALSE)+
+  geom_text(aes(x = year, y = inf_adj,label = state_plot), 
+            family = "Times",
+            check_overlap = FALSE)+
+  scale_size_manual(values = c(1.5,0.2,1.5))+
+  scale_color_manual(values = c("pink","grey","lightgreen"))+
+  scale_y_log10()+
+  labs(x = "Year",
+       y = "Inflation-adjusted spending on unemployment benefits",
+       title = "How the Unemployment benefits (in $1,000s) changes")+
+  theme(legend.position = "null")+
+  theme_classic()+
+  transition_reveal(year)
+  
+```
+
+
+```{r}
+library(plotly)
+
+state_year_loc <- kids%>%filter(variable=="PK12ed")%>%
+  mutate(year2 = as.factor(year))%>%
+  mutate(state = str_to_lower(state))%>%
+  group_by(state, year2)%>%summarise(inf_adj= mean(inf_adj))%>%
+  right_join(map_data("state"),by =c("state"="region"))
+
+
+
+
+ggplotly(state_year_loc%>%mutate(year = as.numeric(year2)) %>%
+  ggplot(aes(x = long, y = lat, group = group))+
+  geom_polygon(aes(fill = inf_adj))+
+  scale_fill_gradient(low = "yellow", high = "orangered")+
+  facet_wrap(~year2)+
+  theme_void())
+```
+
+
+
+
+
+```{r}
+library(ggrepel)
+k12_data <- kids%>%filter(variable=="PK12ed")%>%
+  filter(year%in%c(1997,2016))%>%mutate(year = as.character(year))%>%
+  select(-raw,-inf_adj_perchild)%>%
+  pivot_wider(names_from = year, values_from = inf_adj)
+
+names(k12_data)<-c("state","variable","data1997","data2016")
+  
+ggplotly(k12_data%>%mutate(pct_change = data2016/data1997)%>%
+  ggplot(aes(x = data1997, y = pct_change, group = state))+geom_point()+
+  scale_x_log10()+expand_limits(x = 500000, y = 0))
+```
+
+```{r}
+
+k12_data%>%mutate(change = data2016-data1997)%>%
+  select(-variable)%>%
+  pivot_longer(data1997:data2016,names_to ="year", values_to = "adj_inf")%>%
+  ggplot(aes(x = adj_inf, y = reorder(state,change)))+
+  geom_point(aes(color = year),size = 3)+geom_line(size = 2,alpha = 0.1)+theme_classic()+
+  labs(x = "Government spending adjusted by inflation",
+       y = "State ordered by change in spending",
+       title = "How the government spending on K12 education changes from 1997 to 2016")+
+  scale_color_brewer(palette = "Paired")+
+  scale_x_continuous(labels = scales::comma)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
