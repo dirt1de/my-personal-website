@@ -1,5 +1,5 @@
 ---
-title: Cocktails analysis
+title: What's in your cocktails?
 author: Xuxin Zhang
 date: '2020-09-21'
 slug: cocktails-analysis
@@ -22,9 +22,12 @@ output:
     toc: false
 runtime: shiny
 projects: []
----
+------
+
 ## 1. Introduction
-This project explore the recipes for cocktails. Our main focus would be put on the ingredients of different types of cocktails. We will create a word cloud plot to show how frequently the ingredients appear in the recipes and an interactive bar plot to show the composition of certain type of cocktail drinks.
+Several days ago, I went to a bar to celebrate one of my friends' birthday. We ordered some cocktails. However, when my drink was served, since I am not an  alcoholic person, I couldn't really recognize what was in my margarita after a few sippings, which makes me wonder if I could develop some interactive web application so that people would know what are the ingredients added to their booze.
+
+This project explore the recipes of cocktails. The main focus would be put on analyzing ingredients of different types of cocktails. At the end of the project, we wil create an interactive bar plot to show the composition of certain type of cocktail drinks.
 
 ## 2. Data analysis
 First, we need to import the two datasets we are going to use.
@@ -36,49 +39,53 @@ tuesdata <- tidytuesdayR::tt_load('2020-05-26')
 
 cocktails<-tuesdata$cocktails
 boston_cocktails <-tuesdata$boston_cocktails
-
 ```
 
-After importing the data, I wonder what is the difference between these two, so I calculate the number of drinks incorporated in them and find out that the `boston_cocktails` contains more type of drinks. In addition, notice that the `boston_cocktails` has a more uniform units for the measure column, which would facilitate our construction of the interactive bar plot. Thus, we will stick with the boston datasets for the rest of the project.
+After importing the data, I wonder what is the difference between these two datasets, so I calculate the number of drinks incorporated and find out that the `boston_cocktails` contains more type of drinks. In addition, notice that the `boston_cocktails` has a more uniform units for the measure column, which would facilitate our construction of the interactive bar plot. Thus, we will stick with the boston datasets for the rest of the project.
 
 ```{r,warning=FALSE}
 library(stringr)
+library(knitr)
 
 cocktails%>%distinct(drink)
-cocktails%>%datatable()
+kable(head(cocktails,20))
 
 boston_cocktails%>%distinct(name)
-boston_cocktails%>%datatable()
+kable(head(boston_cocktails,20))
 ```
 
-Next, we will find out the ingredients used the most in the recipes. The following is a list of the top 10 ingredients used to create cocktails. 
+Next, we will find out the ingredients used the most in the recipes. In this way, even though you may have  no idea about what's in your cocktails, chances are that if you pick one of most frequently used ingredients listed below, you may get the correct answer (and you can show off a little bit in front of your friends). The following is a list of the top 10 ingredients used to create cocktails. 
 
 ```{r}
 boston_cocktails%>%count(ingredient, sort = TRUE)%>%head(10)%>%
-  ggplot(aes(x = reorder(ingredient,n), y = n, color = ingredient))+
-  geom_point(aes(size = n), alpha = 0.6)+
+  ggplot(aes(x = reorder(ingredient,n), y = n))+
+  geom_point(aes(size = n), alpha = 0.2)+
   geom_segment(aes(x=reorder(ingredient,n),
                    xend = reorder(ingredient,n), 
-                   y = 0, yend = n,size = n), alpha = 0.6)+
+                   y = 0, yend = n,size = n), alpha = 0.2)+
   ylim(0,180)+theme_minimal()+
-  theme(axis.text.x = element_text(vjust = 0.8),
+  theme(
+        axis.text.x = element_text(vjust = 0.8),
         axis.text.y = element_blank(),
         axis.title.y = element_blank(),
         legend.position = "null")+
   labs(x = "Ingredient", y = "Count",
        title = "Top 10 ingredients used in cocktail recipes")+
-  coord_polar()
+  coord_polar(clip = "off")
 ```
 
 We can visualize in another way by drawing a word cloud plot.
 
+
 ![](/media/cocktail.png)
 
+From these two graphs, we can see that the top ingredients are gin, fresh lemon juice,simple syrup, and vodka.
 
-I also wonder which category has the most ingredients on average. We start by finding out how many types of cocktails are there. Based on the list below, we can see there are altogether 11 types of drinks. 
+
+I also wonder which category requires the most ingredients on average. We start by finding out how many types of cocktails are there. Based on the list below, we can see there are altogether 11 types of drinks. 
 
 ```{r}
-boston_cocktails%>%count(category,sort = TRUE)%>%datatable()
+boston_cocktails%>%count(category,sort = TRUE)%>%kable()
 ```
 
 Then we summarize the average number of ingredients for each type. We can take a look at which cocktail has the most ingredients. As the table shows, the greatest number of ingredients is 6, and there are quite a lot of drinks which are made from 6 ingredients.  
@@ -86,7 +93,7 @@ Then we summarize the average number of ingredients for each type. We can take a
 ```{r}
 number_ingredient<-boston_cocktails%>%group_by(category,name)%>%summarise(num_ing = max(ingredient_number))
 
-number_ingredient%>%arrange(desc(num_ing))%>%datatable()
+kable(head(number_ingredient%>%arrange(desc(num_ing)),20))
 ```
 
 After knowing this, we can draw boxplot to show the distribution of number of ingredients for each type.
@@ -97,11 +104,19 @@ number_ingredient%>%
   geom_boxplot()+
   labs(x = "Number of ingredients", 
        y ="Category of cocktails", 
-       title = "The distribution of number of ingredients for different categories ")+
+       title = "The distribution of number of ingredients for different cocktail categories ")+
   xlim(0,7)
 ```
 
+Based on the graph above, we konw that tequila cocktails and whiskies cocktails have the highest average number of incredients being used. 
 
+After knowing these rudimentary facts about cocktails, we are ready to build the interactive web application. 
+
+## 3. Constructing Shiny web application
+
+Our goal is to create an interactive application that shows you which ingredients are added to your cocktail as well as the corresponding proportions. In order to do so, we need to first make the measure column to be uniform since right now that column has both integers and fraction. What we need to do is to convert the fractions into integers. 
+
+My method is to first use `separate_rows()` to separate the entries with composite fraction format such as "1 1/2" into a digit part (1) and fraction part(1/2). Then, I use `str_detect()` to distinguish between integers and fraction. Next, I count how many types of fractions are there. Luckily, we only have 5 types of fractions, so we can use the `case_when()` to change the 5 types of fractions into the digit format. After finishing these steps, we can unify the measure with ease, and the following is our final result. 
 ```{r}
 # find out how many types of fractions are there
 boston_cocktails%>%
@@ -127,9 +142,80 @@ boston_cocktails_clean<-boston_cocktails%>%
 boston_cocktails_clean
 ```
 
+Our next step is to create a Shiny app. The following is the code I wrote to deploy the interactive bar plot. And the final result is shown under this chunk of code. With the help of such app, you could finally tell your friends confidently what is in your cocktails.
 
+```
+library(shiny)
+library(tidyverse)
+library(plotly)
+theme_set(theme_light())
+cocktails <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/cocktails.csv')
+boston_cocktails <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/boston_cocktails.csv')
 
+boston_cocktails_clean<-boston_cocktails%>%
+    mutate(measure = str_remove(measure, "oz"))%>%
+    separate_rows(measure, sep = " ")%>%
+    mutate(measure= case_when(measure == "1/2"~0.5,
+                              measure == "1/3"~round(1/3,3),
+                              measure == "1/4"~0.25,
+                              measure == "2/3"~round(2/3,3),
+                              measure == "3/4"~0.75,
+                              TRUE~as.numeric(measure)))%>%
+    filter(!is.na(measure))%>%
+    group_by(name,category,ingredient_number,ingredient)%>%
+    summarise(measure = sum(measure))
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+
+    # Application title
+    titlePanel("Interactive bar plot:"),
+
+    # Sidebar with a slider input for number of bins 
+    sidebarLayout(
+        sidebarPanel(
+            selectInput("name",label = "Select the cocktail name",
+                        choices = unique(boston_cocktails_clean$name),
+                        selected  = c("Mojito","Martini"),
+                        selectize = TRUE,
+                        multiple = TRUE)
+        ),
+
+        # Show a plot of the generated distribution
+        mainPanel(
+           plotOutput("distPlot"),height = 250, width = 400
+        )
+    )
+)
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+
+    output$distPlot <- renderPlotly({
+        ggplotly(boston_cocktails_clean%>%
+            filter(name%in%input$name)%>%
+            ggplot(aes(x = ingredient, y = measure, fill = name))+
+            geom_col(position = "dodge", alpha = 0.7)+
+            labs(x = "Ingredient", y ="Oz",
+                 title = "The ingredient composition for...",
+                 fill = "Name of the cocktails")+
+            theme(plot.margin = margin(30, 30, 30, 30),
+                  plot.title = element_text(size = 20, family = "Times", 
+                                            face = "bold", margin = margin(20,0,5,0)),
+                  axis.title.x = element_text(size = 12, family = "Times"),
+                  axis.title.y = element_text(size = 12, family = "Times"),
+                  axis.text.x = element_text(size = 12,family = "Times", angle = 45)))
+    })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
 
 <iframe height="800" width="100%" frameborder="no" src="https://xuxinzhang.shinyapps.io/cocktails_shiny_app/"></iframe>
+
+
+
+
 
 
