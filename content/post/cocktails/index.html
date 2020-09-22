@@ -1,96 +1,44 @@
+---
+title: What's in your cocktails?
+author: Xuxin Zhang
+date: '2020-09-21'
+slug: cocktails-analysis
+categories:
+  - R project
+tags:
+  - data visualization
+  - Rshiny
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-09-21T12:00:34+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: yes
+output:
+  blogdown::html_page:
+    toc: false
+runtime: shiny
+projects: []
+---
 
 
 
-<table>
-<tbody>
-<tr class="odd">
-<td>title: What’s in your cocktails?</td>
-</tr>
-<tr class="even">
-<td>author: Xuxin Zhang</td>
-</tr>
-<tr class="odd">
-<td>date: ‘2020-09-21’</td>
-</tr>
-<tr class="even">
-<td>slug: cocktails-analysis</td>
-</tr>
-<tr class="odd">
-<td>categories:</td>
-</tr>
-<tr class="even">
-<td>- R project</td>
-</tr>
-<tr class="odd">
-<td>tags:</td>
-</tr>
-<tr class="even">
-<td>- data visualization</td>
-</tr>
-<tr class="odd">
-<td>- Rshiny</td>
-</tr>
-<tr class="even">
-<td>subtitle: ’’</td>
-</tr>
-<tr class="odd">
-<td>summary: ’’</td>
-</tr>
-<tr class="even">
-<td>authors: []</td>
-</tr>
-<tr class="odd">
-<td>lastmod: ‘2020-09-21T12:00:34+08:00’</td>
-</tr>
-<tr class="even">
-<td>featured: no</td>
-</tr>
-<tr class="odd">
-<td>image:</td>
-</tr>
-<tr class="even">
-<td>caption: ’’</td>
-</tr>
-<tr class="odd">
-<td>focal_point: ’’</td>
-</tr>
-<tr class="even">
-<td>preview_only: yes</td>
-</tr>
-<tr class="odd">
-<td>output:</td>
-</tr>
-<tr class="even">
-<td>blogdown::html_page:</td>
-</tr>
-<tr class="odd">
-<td>toc: false</td>
-</tr>
-<tr class="even">
-<td>runtime: shiny</td>
-</tr>
-<tr class="odd">
-<td>projects: []</td>
-</tr>
-</tbody>
-</table>
-<div id="introduction" class="section level2">
+<div id="section-introduction" class="section level2">
 <h2>1. Introduction</h2>
 <p>Several days ago, I went to a bar to celebrate one of my friends’ birthday. We ordered some cocktails. However, when my drink was served, since I am not an alcoholic person, I couldn’t really recognize what was in my margarita after a few sippings, which makes me wonder if I could develop some interactive web application so that people would know what are the ingredients added to their booze.</p>
 <p>This project explore the recipes of cocktails. The main focus would be put on analyzing ingredients of different types of cocktails. At the end of the project, we wil create an interactive bar plot to show the composition of certain type of cocktail drinks.</p>
 </div>
-<div id="data-analysis" class="section level2">
+<div id="section-data-analysis" class="section level2">
 <h2>2. Data analysis</h2>
 <p>First, we need to import the two datasets we are going to use.</p>
 <pre class="r"><code>library(tidyverse)
 library(DT)
 theme_set(theme_light())
-tuesdata &lt;- tidytuesdayR::tt_load(&#39;2020-05-26&#39;)</code></pre>
-<pre><code>## 
-##  Downloading file 1 of 2: `cocktails.csv`
-##  Downloading file 2 of 2: `boston_cocktails.csv`</code></pre>
-<pre class="r"><code>cocktails&lt;-tuesdata$cocktails
-boston_cocktails &lt;-tuesdata$boston_cocktails</code></pre>
+cocktails &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/cocktails.csv&#39;)
+boston_cocktails &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/boston_cocktails.csv&#39;)</code></pre>
 <p>After importing the data, I wonder what is the difference between these two datasets, so I calculate the number of drinks incorporated and find out that the <code>boston_cocktails</code> contains more type of drinks. In addition, notice that the <code>boston_cocktails</code> has a more uniform units for the measure column, which would facilitate our construction of the interactive bar plot. Thus, we will stick with the boston datasets for the rest of the project.</p>
 <pre class="r"><code>library(stringr)
 library(knitr)
@@ -825,7 +773,7 @@ cocktails%&gt;%distinct(drink)</code></pre>
 <p>Based on the graph above, we konw that tequila cocktails and whiskies cocktails have the highest average number of incredients being used.</p>
 <p>After knowing these rudimentary facts about cocktails, we are ready to build the interactive web application.</p>
 </div>
-<div id="constructing-shiny-web-application" class="section level2">
+<div id="section-constructing-shiny-web-application" class="section level2">
 <h2>3. Constructing Shiny web application</h2>
 <p>Our goal is to create an interactive application that shows you which ingredients are added to your cocktail as well as the corresponding proportions. In order to do so, we need to first make the measure column to be uniform since right now that column has both integers and fraction. What we need to do is to convert the fractions into integers.</p>
 <p>My method is to first use <code>separate_rows()</code> to separate the entries with composite fraction format such as “1 1/2” into a digit part (1) and fraction part(1/2). Then, I use <code>str_detect()</code> to distinguish between integers and fraction. Next, I count how many types of fractions are there. Luckily, we only have 5 types of fractions, so we can use the <code>case_when()</code> to change the 5 types of fractions into the digit format. After finishing these steps, we can unify the measure with ease, and the following is our final result.</p>
@@ -921,8 +869,8 @@ ui &lt;- fluidPage(
 # Define server logic required to draw a histogram
 server &lt;- function(input, output) {
 
-    output$distPlot &lt;- renderPlotly({
-        ggplotly(boston_cocktails_clean%&gt;%
+    output$distPlot &lt;- renderPlot({
+        boston_cocktails_clean%&gt;%
             filter(name%in%input$name)%&gt;%
             ggplot(aes(x = ingredient, y = measure, fill = name))+
             geom_col(position = &quot;dodge&quot;, alpha = 0.7)+
@@ -934,12 +882,13 @@ server &lt;- function(input, output) {
                                             face = &quot;bold&quot;, margin = margin(20,0,5,0)),
                   axis.title.x = element_text(size = 12, family = &quot;Times&quot;),
                   axis.title.y = element_text(size = 12, family = &quot;Times&quot;),
-                  axis.text.x = element_text(size = 12,family = &quot;Times&quot;, angle = 45)))
+                  axis.text.x = element_text(size = 12,family = &quot;Times&quot;, angle = 45))
     })
 }
 
 # Run the application 
-shinyApp(ui = ui, server = server)</code></pre>
+shinyApp(ui = ui, server = server)
+</code></pre>
 <iframe height="800" width="100%" frameborder="no" src="https://xuxinzhang.shinyapps.io/cocktails_shiny_app/">
 </iframe>
 </div>

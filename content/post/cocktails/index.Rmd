@@ -22,8 +22,7 @@ output:
     toc: false
 runtime: shiny
 projects: []
-------
-
+---
 ## 1. Introduction
 Several days ago, I went to a bar to celebrate one of my friends' birthday. We ordered some cocktails. However, when my drink was served, since I am not an  alcoholic person, I couldn't really recognize what was in my margarita after a few sippings, which makes me wonder if I could develop some interactive web application so that people would know what are the ingredients added to their booze.
 
@@ -35,10 +34,8 @@ First, we need to import the two datasets we are going to use.
 library(tidyverse)
 library(DT)
 theme_set(theme_light())
-tuesdata <- tidytuesdayR::tt_load('2020-05-26')
-
-cocktails<-tuesdata$cocktails
-boston_cocktails <-tuesdata$boston_cocktails
+cocktails <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/cocktails.csv')
+boston_cocktails <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/boston_cocktails.csv')
 ```
 
 After importing the data, I wonder what is the difference between these two datasets, so I calculate the number of drinks incorporated and find out that the `boston_cocktails` contains more type of drinks. In addition, notice that the `boston_cocktails` has a more uniform units for the measure column, which would facilitate our construction of the interactive bar plot. Thus, we will stick with the boston datasets for the rest of the project.
@@ -191,8 +188,8 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-    output$distPlot <- renderPlotly({
-        ggplotly(boston_cocktails_clean%>%
+    output$distPlot <- renderPlot({
+        boston_cocktails_clean%>%
             filter(name%in%input$name)%>%
             ggplot(aes(x = ingredient, y = measure, fill = name))+
             geom_col(position = "dodge", alpha = 0.7)+
@@ -204,12 +201,13 @@ server <- function(input, output) {
                                             face = "bold", margin = margin(20,0,5,0)),
                   axis.title.x = element_text(size = 12, family = "Times"),
                   axis.title.y = element_text(size = 12, family = "Times"),
-                  axis.text.x = element_text(size = 12,family = "Times", angle = 45)))
+                  axis.text.x = element_text(size = 12,family = "Times", angle = 45))
     })
 }
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+
 ```
 
 <iframe height="800" width="100%" frameborder="no" src="https://xuxinzhang.shinyapps.io/cocktails_shiny_app/"></iframe>
