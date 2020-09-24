@@ -18,8 +18,19 @@ image:
   focal_point: ''
   preview_only: no
 projects: []
+description: "How US spending on kids changes"
 ---
 
+## 1. Introduction
+This week's #TidyTuesday data concerns about the US spending on kids. Since I'm currently in a K12 education tutoring program, I'm really excited about the data and can't wait to see the final result of the analysis.
+
+This project would be mainly about using visualizations (because we have a quite limited number of variables to analyze) to draw some interesting conclusions on how the spending changes in different states. We will first analyze the change generally and at last find out the states that improved the most on educational spending. Specifically, the `gganimate` package would be used to create animated visualization so that we would be able to know how the spending changes chronologically.  
+
+## 2. Data Visualization
+This section has been broken down into three parts: analysis on public health spending, analysis on unemployment benefits, and analysis on K12 education. My reason of doing so is because I personally think these three are the most important factors to consider when parents try to decide where to go so that their children would have the best educational resource
+
+### 2.1 Spending on Public Health
+We first import the data we are going to use today. 
 
 ```{r,message=FALSE,warning=FALSE}
 library(tidyverse)
@@ -27,16 +38,18 @@ kids <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidyt
 theme_set(theme_light())
 ```
 
+After importing the data, we can first take a look at how the total spending changes and then see how the spending per child changes. In this visualization, we have highlighted the top 3 and bottom 3 states in the amount of K12 education spending in 2016. If we only focus on the total spending on public health, California, New York and Pennsylvania are the top three states, and Rhode Island, South Dakota, and New Hampshire are the bottom three states in ranking.
+
 ```{r}
 library(gganimate)
 
 top_states_pub<-kids%>%filter(variable=="pubhealth")%>%
-  filter(year ==2012)%>%
+  filter(year ==2016)%>%
   arrange(desc(inf_adj))%>%
   head(3)%>%pull(state)
 
 bottom_states_pub<-kids%>%filter(variable=="pubhealth")%>%
-  filter(year ==2012)%>%
+  filter(year ==2016)%>%
   arrange(inf_adj)%>%
   head(3)%>%pull(state)
 
@@ -57,22 +70,63 @@ kids%>%filter(variable=="pubhealth")%>%
   scale_color_manual(values = c("pink","grey","lightgreen"))+
   scale_y_log10()+
   labs(x = "Year",
-       y = "Inflation-adjusted spending on public health",
-       title = "How the spending on public health (in $1,000s) changes")+
+       y = "Spending on public health",
+       title = "How the total spending on public health (in $1,000s) changes")+
   theme(legend.position = "null",
         plot.title = element_text(face = "bold", size = 14, margin = margin(20,0,5,0)))+
   theme_classic()+
   transition_reveal(year)
 ```
 
+If we turn to the spending per child on public health, the top three becomes District of Columbia, Vermont, and Delaware, while the bottom three states are Nevada, Arkansas, and Indiana.
+
+
+```{r}
+top_states_pub<-kids%>%filter(variable=="pubhealth")%>%
+  filter(year ==2016)%>%
+  arrange(desc(inf_adj_perchild))%>%
+  head(3)%>%pull(state)
+
+bottom_states_pub<-kids%>%filter(variable=="pubhealth")%>%
+  filter(year ==2016)%>%
+  arrange(inf_adj_perchild)%>%
+  head(3)%>%pull(state)
+
+kids%>%filter(variable=="pubhealth")%>%
+  mutate(top_bottom = case_when(state%in%top_states_pub~"Top",
+                                state%in%bottom_states_pub~"Bottom",
+                                TRUE~"Others"),
+         state_plot =case_when(state%in%top_states_pub~state,
+                                    state%in%bottom_states_pub~state,
+                                    TRUE~""))%>%
+  ggplot(aes(x = year, y = inf_adj_perchild, group = state))+
+  geom_point(aes(size = top_bottom,color = top_bottom), alpha = 0.5,show.legend = FALSE)+
+  geom_path(aes(size = top_bottom,color = top_bottom),show.legend = FALSE)+
+  geom_text(aes(x = year, y = inf_adj_perchild,label = state_plot), 
+            family = "Times",
+            check_overlap = FALSE)+
+  scale_size_manual(values = c(1.5,0.2,1.5))+
+  scale_color_manual(values = c("pink","grey","lightgreen"))+
+  scale_y_log10()+
+  labs(x = "Year",
+       y = "Spending on public health",
+       title = "How the spending per child on public health (in $1,000s) changes")+
+  theme(legend.position = "null",
+        plot.title = element_text(face = "bold", size = 14, margin = margin(20,0,5,0)))+
+  theme_classic()+
+  transition_reveal(year)
+```
+
+### 2.2 Spending on Unemployment Benefits
+Next we turn to study the US spending on Unemployment benefits. A really interesting point about this visualization is that we see a clear trend in the change of unemployment benefit spending. The total spending drops at 2000 for most of the states. Then it rises from 2000 to 2004 and decreases gradually. After 2008, the total spending skyrockets and reaches the peak at 2010. Since 2010, the unemployment spending stays at a low level. 
 ```{r}
 top_states_unemp<-kids%>%filter(variable=="unemp")%>%
-  filter(year ==2012)%>%
+  filter(year ==2016)%>%
   arrange(desc(inf_adj))%>%
   head(3)%>%pull(state)
 
 bottom_states_unemp<-kids%>%filter(variable=="unemp")%>%
-  filter(year ==2012)%>%
+  filter(year ==2016)%>%
   arrange(inf_adj)%>%
   head(3)%>%pull(state)
 
@@ -93,27 +147,73 @@ kids%>%filter(variable=="unemp")%>%
   scale_color_manual(values = c("pink","grey","lightgreen"))+
   scale_y_log10()+
   labs(x = "Year",
-       y = "Inflation-adjusted spending on unemployment benefits",
-       title = "How the Unemployment benefits (in $1,000s) changes")+
+       y = "Spending on unemployment benefits",
+       title = "How the total Unemployment benefits (in $1,000s) changes")+
   theme(legend.position = "null",
         plot.title = element_text(face = "bold", size = 14, margin = margin(20,0,5,0)))+
   theme_classic()+
   transition_reveal(year)
 ```
 
+The same trend appears in the visualization of spending per child on umemployment benefits.
+
 ```{r}
+top_states_unemp<-kids%>%filter(variable=="unemp")%>%
+  filter(year ==2016)%>%
+  arrange(desc(inf_adj_perchild))%>%
+  head(3)%>%pull(state)
+
+bottom_states_unemp<-kids%>%filter(variable=="unemp")%>%
+  filter(year ==2016)%>%
+  arrange(inf_adj_perchild)%>%
+  head(3)%>%pull(state)
+
+kids%>%filter(variable=="unemp")%>%
+  mutate(top_bottom = case_when(state%in%top_states_unemp~"Top",
+                                state%in%bottom_states_unemp~"Bottom",
+                                TRUE~"Others"),
+         state_plot =case_when(state%in%top_states_unemp~state,
+                                    state%in%bottom_states_unemp~state,
+                                    TRUE~""))%>%
+  ggplot(aes(x = year, y = inf_adj_perchild,group = state))+
+  geom_point(aes(size = top_bottom,color = top_bottom), alpha = 0.5,show.legend = FALSE)+
+  geom_path(aes(size = top_bottom,color = top_bottom),show.legend = FALSE)+
+  geom_text(aes(x = year, y = inf_adj_perchild,label = state_plot), 
+            family = "Times",
+            check_overlap = FALSE)+
+  scale_size_manual(values = c(1.5,0.2,1.5))+
+  scale_color_manual(values = c("pink","grey","lightgreen"))+
+  scale_y_log10()+
+  labs(x = "Year",
+       y = "Spending on unemployment benefits",
+       title = "How the Unemployment benefits per child (in $1,000s) changes")+
+  theme(legend.position = "null",
+        plot.title = element_text(face = "bold", size = 14, margin = margin(20,0,5,0)))+
+  theme_classic()+
+  transition_reveal(year)
+```
+
+
+In my opinion, the peaks correspond to the recession periods of US economy, and the troughs are a reflection of a healthy economy. Strangely enough, unlike spending on health care, the spending on unemployment benefits for all the states actually changes in sync, which makes me wonder if the uneomployment benefit spending is controlled national-wide. 
+
+### 2.3 Spending on K12 education
+
+Finally, let's look at how the total spending on K12 education changes across time. We see that top and bottom positions don't change very much across the years: California, New York and Texas have been in the leading positions from the very begining, and Vermon, South Dakota and North Dakota have invested the least on K12 education since 1997.
+
+```{r}
+library(gganimate)
 
 top_states_pk<-kids%>%filter(variable=="PK12ed")%>%
-  filter(year ==2012)%>%
+  filter(year ==2016)%>%
   arrange(desc(inf_adj))%>%
   head(3)%>%pull(state)
 
 bottom_states_pk<-kids%>%filter(variable=="PK12ed")%>%
-  filter(year ==2012)%>%
+  filter(year ==2016)%>%
   arrange(inf_adj)%>%
   head(3)%>%pull(state)
 
-kids%>%filter(variable=="pubhealth")%>%
+kids%>%filter(variable=="PK12ed")%>%
   mutate(top_bottom = case_when(state%in%top_states_pk~"Top",
                                 state%in%bottom_states_pk~"Bottom",
                                 TRUE~"Others"),
@@ -130,39 +230,56 @@ kids%>%filter(variable=="pubhealth")%>%
   scale_color_manual(values = c("pink","grey","lightgreen"))+
   scale_y_log10()+
   labs(x = "Year",
-       y = "Inflation-adjusted spending on K12 education",
-       title = "How the spending on K12 education (in $1,000s) changes")+
+       y = "Total spending on K12 education",
+       title = "How the total spending on K12 education (in $1,000s) changes")+
   theme(legend.position = "null",
         plot.title = element_text(face = "bold", size = 14, margin = margin(20,0,5,0)))+
   theme_classic()+
   transition_reveal(year)
 ```
 
-```{r,warning=FALSE}
-library(plotly)
+However, the total spending doesn't mean everything. We need to take the total population of students of each state into consideration. That's why we turn to analyze `inf_adj_perchild` next.
 
-state_year_loc <- kids%>%filter(variable=="PK12ed")%>%
-  mutate(year2 = as.factor(year))%>%
-  mutate(state = str_to_lower(state))%>%
-  group_by(state, year2)%>%summarise(inf_adj= mean(inf_adj))%>%
-  right_join(map_data("state"),by =c("state"="region"))
+Then we see the ranking changes completely. District of Columbia, New York, and Vermont now take the first three places, while Arizona, Idaho, and Utah take the bottom three places. One really important thing we should notice is that the unit for the spending is actually in $1,000s. That is to say, even though based on this visualization, the difference of spending on K12 education per child between the top states and bottom states may be 6 to 7 units, the real difference is actually 6,000 to 7,000 dollars per child, which is quite a lot. 
 
+```{r}
+top_states_pk<-kids%>%filter(variable=="PK12ed")%>%
+  filter(year ==2016)%>%
+  arrange(desc(inf_adj_perchild))%>%
+  head(3)%>%pull(state)
 
+bottom_states_pk<-kids%>%filter(variable=="PK12ed")%>%
+  filter(year ==2016)%>%
+  arrange(inf_adj_perchild)%>%
+  head(3)%>%pull(state)
 
-
-ggplotly(state_year_loc%>%mutate(year = as.numeric(year2)) %>%
-  ggplot(aes(x = long, y = lat, group = group))+
-  geom_polygon(aes(fill = inf_adj))+
-  scale_fill_gradient(low = "yellow", high = "orangered")+
-  facet_wrap(~year2)+
-  theme(plot.title = element_text(face = "bold", size = 14, margin = margin(20,0,5,0)))+
-  theme_void()+
-  labs(title = "The heatmap of spending on K12 education from 1997 to 2016",
-       fill = "Spending"))
+kids%>%filter(variable=="PK12ed")%>%
+  mutate(top_bottom = case_when(state%in%top_states_pk~"Top",
+                                state%in%bottom_states_pk~"Bottom",
+                                TRUE~"Others"),
+         state_plot =case_when(state%in%top_states_pk~state,
+                                    state%in%bottom_states_pk~state,
+                                    TRUE~""))%>%
+  ggplot(aes(x = year, y = inf_adj_perchild, group = state))+
+  geom_point(aes(size = top_bottom,color = top_bottom), alpha = 0.5,show.legend = FALSE)+
+  geom_path(aes(size = top_bottom,color = top_bottom),show.legend = FALSE)+
+  geom_text(aes(x = year, y = inf_adj_perchild,label = state_plot), 
+            family = "Times",
+            check_overlap = FALSE)+
+  scale_size_manual(values = c(1.5,0.2,1.5))+
+  scale_color_manual(values = c("pink","grey","lightgreen"))+
+  scale_y_log10()+
+  labs(x = "Year",
+       y = "Spending on K12 education per child",
+       title = "How the spending on K12 education perchild (in $1,000s) changes")+
+  theme(legend.position = "null",
+        plot.title = element_text(face = "bold", size = 14, margin = margin(20,0,5,0)))+
+  theme_classic()+
+  transition_reveal(year)
 ```
 
 
-
+Next, we compare the change of spending on K12 education in 1997 and in 2016 to see how each state has progressed. In the graph below, the x coordinate of each point is its spending on K12 education in 1997, and the y coordinate shows how many percentages have changed in the total spending. It is calculated by dividing the total spending value in 2016 by that in 1997. In this way, the points on the left side are the states with a comparatively low spending in 1997, and the points on the left are the states which had high spending to begin with. We can see that most of the states have increased the spending on K12 by 130%-150%. However, there are two outliers: District of Columbia and Michigan. The up-right position of District of Columbia means even though it started with a low spending on K12 education, it has almost trippled the amount in the 20 years. For Michigan, even though it started with a high investment in K12 education, the total amount stays the same for all these years.
 
 
 ```{r,warning=FALSE}
@@ -172,17 +289,28 @@ k12_data <- kids%>%filter(variable=="PK12ed")%>%
   select(-raw,-inf_adj_perchild)%>%
   pivot_wider(names_from = year, values_from = inf_adj)
 
+k12_perchild_data<- kids%>%filter(variable=="PK12ed")%>%
+  filter(year%in%c(1997,2016))%>%mutate(year = as.character(year))%>%
+  select(-raw,-inf_adj)%>%
+  pivot_wider(names_from = year, values_from = inf_adj_perchild)
+
 names(k12_data)<-c("state","variable","data1997","data2016")
+
+names(k12_perchild_data)<-c("state","variable","data1997","data2016")
   
 k12_data%>%mutate(pct_change = data2016/data1997)%>%
   ggplot(aes(x = data1997, y = pct_change, group = state))+geom_point()+
   scale_x_log10()+expand_limits(x = 500000, y = 0)+
-    geom_text_repel(aes(label = state), size = 3)
+  geom_text_repel(aes(label = state), size = 3)+
+  labs(x = "Spending amount in 1997", y = "Percentage change compared to spending in 1997",
+       title = "How the spending on K12 education changes from 1997")
 ```
+
+To visualize the information conveyed through the graphic above more straightforwardly, we turn to the dumbell plot for help.
 
 ```{r}
 
-ggplotly(k12_data%>%mutate(change = data2016-data1997)%>%
+k12_data%>%mutate(change = data2016-data1997)%>%
   select(-variable)%>%
   pivot_longer(data1997:data2016,names_to ="year", values_to = "adj_inf")%>%
   ggplot(aes(x = adj_inf, y = reorder(state,change)))+
@@ -192,10 +320,27 @@ ggplotly(k12_data%>%mutate(change = data2016-data1997)%>%
        title = "How the government spending on K12 education changes from 1997 to 2016")+
   scale_color_brewer(palette = "Paired")+
   scale_x_continuous(labels = scales::comma)+
-  theme(plot.title = element_text(face = "bold", size = 14, margin = margin(50,0,5,0))))
+  theme(plot.title = element_text(face = "bold", size = 11, margin = margin(50,0,5,0)))
 
 
 ```
+
+```{r}
+k12_perchild_data%>%mutate(change = data2016-data1997)%>%
+  select(-variable)%>%
+  pivot_longer(data1997:data2016,names_to ="year", values_to = "adj_inf_perchild")%>%
+  ggplot(aes(x = adj_inf_perchild, y = reorder(state,change)))+
+  geom_point(aes(color = year),size = 3)+geom_line(size = 2,alpha = 0.1)+theme_classic()+
+  labs(x = "Government spending perchild adjusted by inflation",
+       y = "State ordered by change in spending",
+       title = "How the government spending on K12 education perchild changes from 1997 to 2016")+
+  scale_color_brewer(palette = "Paired")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(face = "bold", size = 11, margin = margin(50,0,5,0)))
+
+```
+
+To conclude this project, we end with a racing bar plot to show how the K12 education spending per child changes overtime. 
 
 ```{r}
 library(scales)

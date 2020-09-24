@@ -17,7 +17,7 @@ organizations:
   url: ""
 
 # Short bio (displayed in user profile at end of posts)
-bio: Just wondering village boy.
+bio: Just a wondering village boy.
 
 
 # Social/Academic Networking
