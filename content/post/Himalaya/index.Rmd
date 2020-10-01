@@ -1,0 +1,473 @@
+---
+title: How to conquer the moutains in Himalaya
+author: Xuxin Zhang
+date: '2020-10-01'
+slug: how-to-conquer-the-moutains-in-himalaya
+categories:
+  - R project
+tags:
+  - data analysis
+  - tidymodel
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-10-01T18:22:36+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+## 1. Introduction
+This week's data records every attempt people have made to climb the mountains in Himalaya. As an amature hiker, I really hope one day in the future I could step my feet on the groud of Everest which is probably the most famous mountain in Himalaya. In order to better prepare myself (theoretically) for the future climbing, I hope to find out the factors that would have a huge influence on my success rate. After studying different factors in details, a machine learning model would be set up in the final part of this project that could predict my success rate of climbing the mountains in Himalaya.
+
+## 2. Exploratory Data Analysis 
+To optimize my success rate, I ask myself the following questions:
+
+> 1. Which mountain(s) has the highest success rate?
+> 2. Which season should I make my first attempt?
+> 3. I should be in a group of how many members so that I could have the best success rate?
+> 4. Would it help me to improve my chance of getting to the peak by hiring more people?
+> 5. Should I use oxygen when I'm climbing?
+> 6. The citizens from which country have the higest success rate (so that I can hire them)?
+
+```{r,message=FALSE,warning=FALSE}
+library(tidyverse)
+theme_set(theme_light())
+members <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/members.csv')
+expeditions <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/expeditions.csv')
+peaks <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/peaks.csv')
+```
+
+After importing the data, let's first take a look at 
+
+```{r}
+expeditions%>%
+  mutate(peak_name = fct_lump_n(peak_name,11))%>%
+  filter(!is.na(peak_name))%>%add_count(peak_name)%>%
+  ggplot(aes(x = reorder(peak_name,n)))+geom_bar(fill = "lightskyblue3")+coord_flip()+
+  labs(y = "Count", x = "",
+       title = "The number of attempts of climbing for each mountains")+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue")
+  )
+```
+
+```{r}
+library(plotly)
+ggplotly(members%>%
+  ggplot(aes(x = year,fill = success))+
+  geom_histogram(bins = 100)+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue")
+  )+
+  scale_fill_brewer(palette = "Paired"))
+```
+
+```{r}
+library(plotly)
+ggplotly(members%>%
+  mutate(peak_name = fct_lump_n(peak_name,5))%>%
+  filter(!is.na(peak_name))%>%
+  ggplot(aes(x = year,fill = success))+
+  geom_histogram(bins = 50)+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))+
+  facet_wrap(~peak_name,scales = "free")+
+  scale_fill_brewer(palette = "Paired"))
+```
+
+You should Analyze the success rate for the mountains. 
+
+```{r}
+library(plotly)
+
+ggplotly(members%>%
+  group_by(year)%>%
+  summarise(success_rate = mean(success==TRUE))%>%
+  ggplot(aes(x = year, y = success_rate, group = 1))+
+  geom_point(color = "lightskyblue3")+
+  geom_line(color = "lightskyblue3")+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue")))
+```
+
+```{r}
+members%>%
+  mutate(peak_name = fct_lump_n(peak_name,5))%>%
+  filter(!is.na(peak_name))%>%
+  group_by(peak_name,year)%>%
+  summarise(success_rate = mean(success==TRUE))%>%
+  ggplot(aes(x = year, y = success_rate, group = 1))+
+  geom_point(color = "lightskyblue3")+
+  geom_line(color = "lightskyblue3")+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))+
+  facet_wrap(~peak_name,scales = "free")
+```
+
+
+
+```{r}
+expeditions%>%mutate(peak_name = fct_lump_n(peak_name,5))%>%
+  filter(peak_name!="NA")%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"))%>%
+  filter(season!="Unknown")%>%
+  ggplot(aes( x = status, fill = status))+
+  geom_bar()+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))+
+  scale_fill_brewer(palette = "Paired")+
+  facet_grid(season~peak_name,scales = "free")
+  
+```
+
+```{r}
+expeditions%>%
+  filter(peak_name=="Everest")%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"))%>%
+  filter(status=="Failed")%>%
+  mutate(total_death = member_deaths+hired_staff_deaths,
+         time = highpoint_date-basecamp_date)%>%
+  ggplot(aes(x = time, y = highpoint_metres))+
+  geom_point(aes(size = total_death), alpha = 0.4)+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"),
+    legend.key = element_rect(fill ="aliceblue") )
+```
+
+```{r}
+expeditions%>%
+  filter(peak_name=="Everest")%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"))%>%
+  mutate(total_death = member_deaths+hired_staff_deaths,
+         time = highpoint_date-basecamp_date)%>%
+  filter(status=="Failed", total_death!=0)%>%
+  ggplot(aes(x = time, y = highpoint_metres))+
+  geom_point(aes(size = total_death), alpha = 0.4)+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"),
+    legend.key = element_rect(fill ="aliceblue") )
+```
+
+```{r}
+members%>%filter(peak_name=="Everest")%>%
+  ggplot(aes(x= injury_height_metres))+
+  geom_histogram(fill = "lightskyblue3", color = "white")+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue")
+  )
+```
+
+
+change the member number into categories. 
+
+```{r}
+library(scales)
+## what is the optimal member number
+
+expeditions%>%select(expedition_id,peak_name,members,member_deaths)%>%
+  inner_join(members%>%select(expedition_id,peak_name,success))%>%
+  filter(members>0)%>%
+  mutate(peak_name = fct_lump_n(peak_name,5))%>%
+  filter(!is.na(peak_name))%>%
+  group_by(peak_name,members)%>%count(success)%>%
+  mutate(success = case_when(success == "TRUE"~"True",
+                             success == "FALSE"~"False"))%>%
+  mutate(members = as.factor(case_when(between(members,1,5)~"1-5",
+                             between(members,6,10)~"6-10",
+                             between(members,11,15)~"11-15",
+                             between(members,16,20)~"16-20",
+                             between(members,21,25)~"21-25",
+                             between(members,26,30)~"26-30",
+                             between(members,31,35)~"31-35",
+                             between(members,36,40)~"36-40",
+                             TRUE~"41 and above")))%>%
+  group_by(peak_name,members,success)%>%summarise(n = sum(n))%>%
+  ggplot(aes(x = members, y = n, fill = success))+
+  geom_histogram(stat = "identity")+facet_wrap(~peak_name,scales = "free")+
+  theme(axis.text.x = element_text(angle = 90))+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))+
+  scale_fill_brewer(palette = "Paired")
+
+## However, this graph doesn't tell us anything: the number of member with greatest frequency of success is also the number with greatest frequency of failure, so we turn to the success probability.
+```
+
+```{r}
+expeditions%>%select(expedition_id,peak_name,members,member_deaths)%>%
+  inner_join(members%>%select(expedition_id,peak_name,success))%>%
+  filter(members>0)%>%
+  mutate(peak_name = fct_lump_n(peak_name,5))%>%
+  filter(!is.na(peak_name))%>%
+  group_by(peak_name,members)%>%count(success)%>%
+  mutate(success = case_when(success == "TRUE"~"True",
+                             success == "FALSE"~"False"))%>%
+  mutate(members = as.factor(case_when(between(members,1,5)~"1-5",
+                             between(members,6,10)~"6-10",
+                             between(members,11,15)~"11-15",
+                             between(members,16,20)~"16-20",
+                             between(members,21,25)~"21-25",
+                             between(members,26,30)~"26-30",
+                             between(members,31,35)~"31-35",
+                             between(members,36,40)~"36-40",
+                             TRUE~"41 and above")))%>%
+  group_by(peak_name,members,success)%>%summarise(n = sum(n))%>%
+  pivot_wider(names_from = success, values_from = n)%>%
+  filter(True>0)%>%
+  mutate(success_rate = True/(True+False))%>%
+  ggplot(aes(x = members, y = success_rate))+
+  geom_bar(stat = "identity",fill = "skyblue3" )+facet_wrap(~peak_name,scales = "free")+
+  theme(axis.text.x = element_text(angle = 90))+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))+
+  scale_fill_brewer(palette = "Paired")
+```
+
+```{r}
+expeditions%>%
+  filter(peak_name=="Everest")%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"))%>%
+  mutate(total_member = members+hired_staff,
+         time = highpoint_date-basecamp_date)%>%
+  filter(status=="Success")%>%
+  ggplot(aes(y = time, x = total_member))+geom_point( alpha = 0.3)+
+  scale_x_log10()+geom_smooth()
+```
+
+Study if hired members proportion would affect the success. 
+
+```{r}
+common_mounts<-expeditions%>%
+  count(peak_name)%>%filter(n>15)
+
+common_mounts
+```
+
+
+```{r}
+expeditions%>%filter(peak_name%in%common_mounts$peak_name)%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"))%>%
+  mutate(total_member = members+hired_staff,
+         hired_ratio = hired_staff/total_member)%>%
+  group_by(peak_name)%>%summarise(success_rate = mean(status=="Success",na.rm = TRUE),
+                                  hired_ratio = mean(hired_ratio,na.rm = TRUE))%>%
+  ggplot(aes(x = hired_ratio, y = success_rate))+
+  geom_point()+
+  geom_text(aes(label = peak_name),check_overlap = TRUE,vjust = -1)+
+  geom_smooth()+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))+
+  scale_fill_brewer(palette = "Paired")
+```
+
+Oxygen usage:
+
+Find out the countries with most number of successful climb/ with fastest average climbing time.
+
+```{r}
+expeditions%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"))%>%
+  filter(peak_name%in%common_mounts$peak_name)%>%
+  group_by(year,oxygen_used)%>%summarise(success_rate = mean(status == "Success"))%>%
+  ggplot(aes(x = year, y = success_rate, color = oxygen_used))+
+  geom_point()+geom_line()+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"),
+    legend.key =  element_rect(fill ="aliceblue"))+
+  scale_color_brewer(palette = "Paired")
+```
+
+```{r}
+expeditions%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"),
+         peak_name = fct_lump(peak_name,5))%>%
+  filter(peak_name!="NA")%>%
+  group_by(peak_name,oxygen_used)%>%
+  summarise(success_rate = mean(status == "Success"))%>%
+  ggplot(aes(x = oxygen_used, y = success_rate, fill = oxygen_used))+
+  geom_col()+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))+
+  scale_fill_brewer(palette = "Paired")+
+  facet_wrap(~peak_name)
+```
+
+```{r}
+top_countries<-peaks%>%filter(!is.na(first_ascent_country), first_ascent_year>1000)%>%
+  separate_rows(first_ascent_country,sep = ", ")%>%
+  count(first_ascent_country,sort = TRUE)%>%head(10)
+
+ggplotly(peaks%>%filter(!is.na(first_ascent_country), 
+               first_ascent_year>1000)%>%
+  separate_rows(first_ascent_country,sep = ", ")%>%
+  add_count(first_ascent_country,sort = TRUE)%>%
+  filter(first_ascent_country%in%top_countries$first_ascent_country)%>%
+  mutate(first_ascent_country = reorder(first_ascent_country,n))%>%
+  ggplot(aes(x = first_ascent_year, y = first_ascent_country))+
+  geom_point(aes(size = height_metres),alpha = 0.3))
+```
+
+```{r}
+members_clean<-members%>%select(sex, age, citizenship, expedition_role,success)
+
+top_citizens<-members_clean%>%count(citizenship,sort = TRUE)%>%head(15)
+
+members_clean%>%
+  filter(citizenship%in%top_citizens$citizenship)%>%
+  group_by(citizenship)%>%
+  summarise(success_rate = mean(success == "TRUE"))%>%
+  ggplot(aes(x = success_rate, y = reorder(citizenship,success_rate)))+
+  geom_point(size = 4, color = "skyblue3")+
+  geom_segment(aes(x = 0, xend = success_rate, y = citizenship, yend = citizenship),
+               size = 2.3,
+               alpha = 0.5, color = "skyblue3" )+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))
+
+```
+
+
+```{r}
+
+members_clean%>%
+  filter(!is.na(sex),
+         !is.na(age))%>%
+  add_count(sex,age,sort = TRUE)%>%
+  filter(n >10)%>%
+  group_by(sex,age)%>%
+  summarise(success_rate = mean(success == "TRUE"))%>%
+  ggplot(aes(x = age, y = success_rate, color = sex))+
+  geom_point()+geom_line()+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))+
+  scale_color_brewer(palette = "Paired")+
+  facet_wrap(~sex)
+```
+
+```{r}
+members_clean%>%
+  filter(!is.na(expedition_role))%>%
+  mutate(expedition_role = fct_lump_n(expedition_role,9))%>%
+  group_by(expedition_role)%>%
+  summarise(success_rate = mean(success == "TRUE"))%>%
+  ggplot(aes(x = success_rate, y = reorder(expedition_role,success_rate)))+
+  geom_point(size = 4, color = "skyblue3")+
+  geom_segment(aes(x = 0, xend = success_rate, y = expedition_role, yend = expedition_role),
+               size = 2.3,
+               alpha = 0.5, color = "skyblue3")+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"))
+  
+```
+
+
