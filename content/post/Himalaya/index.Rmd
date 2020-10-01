@@ -1,5 +1,5 @@
 ---
-title: How to conquer the moutains in Himalaya
+title: How to conquer the moutains in Himalaya?
 author: Xuxin Zhang
 date: '2020-10-01'
 slug: how-to-conquer-the-moutains-in-himalaya
@@ -18,13 +18,16 @@ image:
   focal_point: ''
   preview_only: no
 projects: []
+description: "How to climb mountains in Himalaya?"
 ---
 
 ## 1. Introduction
-This week's data records every attempt people have made to climb the mountains in Himalaya. As an amature hiker, I really hope one day in the future I could step my feet on the groud of Everest which is probably the most famous mountain in Himalaya. In order to better prepare myself (theoretically) for the future climbing, I hope to find out the factors that would have a huge influence on my success rate. After studying different factors in details, a machine learning model would be set up in the final part of this project that could predict my success rate of climbing the mountains in Himalaya.
+This week's data records every attempt people have made to climb the mountains in Himalaya. As an amature hiker, I really hope one day in the future I could step my feet on the groud of Everest which is probably the most famous mountain in Himalaya. 
+
+In order to better prepare myself or other climbers (theoretically) for the future climbing, I hope to find out the factors that would have a huge influence on the success rate. After studying different factors in details, a machine learning model would be set up in the final part of this project that could predict my success rate of climbing the mountains in Himalaya.
 
 ## 2. Exploratory Data Analysis 
-To optimize my success rate, I ask myself the following questions:
+To optimize the success rate, I ask myself the following questions:
 
 > 1. Which mountain(s) has the highest success rate?
 > 2. Which season should I make my first attempt?
@@ -33,6 +36,11 @@ To optimize my success rate, I ask myself the following questions:
 > 5. Should I use oxygen when I'm climbing?
 > 6. The citizens from which country have the higest success rate (so that I can hire them)?
 
+I believe by answering these questions, the chance of success would be improve significantly, and this section would revolve around them.  
+
+### 2.1 Success rate of the mountains
+
+First, let's find out the success rate for different mountains. 
 ```{r,message=FALSE,warning=FALSE}
 library(tidyverse)
 theme_set(theme_light())
@@ -41,13 +49,15 @@ expeditions <- readr::read_csv('https://raw.githubusercontent.com/rfordatascienc
 peaks <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/peaks.csv')
 ```
 
-After importing the data, let's first take a look at 
+After importing the data, let's first take a look at how many times have the mountains at Himalaya been climbed. Based on this graph, we see that the Everest, Ama Dablam, Cho Oyu, Manaslu, and Lhotse have the highest number of climbing attempts. That is to say the climbing routes of these mountains would be more mature than the others. 
 
 ```{r}
 expeditions%>%
-  mutate(peak_name = fct_lump_n(peak_name,11))%>%
+  mutate(peak_name = fct_lump_n(peak_name,9))%>%
   filter(!is.na(peak_name))%>%add_count(peak_name)%>%
-  ggplot(aes(x = reorder(peak_name,n)))+geom_bar(fill = "lightskyblue3")+coord_flip()+
+  ggplot(aes(x = reorder(peak_name,n)))+geom_bar(fill = "lightskyblue3")+
+  geom_text(aes(label = n, y = n), hjust = 1.3)+
+  coord_flip()+
   labs(y = "Count", x = "",
        title = "The number of attempts of climbing for each mountains")+
   theme(
@@ -60,10 +70,12 @@ expeditions%>%
   )
 ```
 
-```{r}
+Then, we analyze how the number of successful and failing attempts changes over time. 
+
+```{r, warning=FALSE}
 library(plotly)
-ggplotly(members%>%
-  ggplot(aes(x = year,fill = success))+
+members%>%
+  ggplot(aes(x = as.integer(year),fill = success))+
   geom_histogram(bins = 100)+
   theme(
     panel.grid.major = element_blank(),
@@ -74,10 +86,15 @@ ggplotly(members%>%
     plot.background = element_rect(fill ="aliceblue"),
     legend.background = element_rect(fill ="aliceblue")
   )+
-  scale_fill_brewer(palette = "Paired"))
+  scale_fill_brewer(palette = "Paired")+
+  labs(x = "Year", y = "Count",
+       title = "How does the number of successful and failing attempts change?",
+       subtitle = "After searching infomation online,
+the plunging number of attempts at 2015 is due to
+a huge earthquake happened around Everest")
 ```
 
-```{r}
+```{r, warning=FALSE}
 library(plotly)
 ggplotly(members%>%
   mutate(peak_name = fct_lump_n(peak_name,5))%>%
