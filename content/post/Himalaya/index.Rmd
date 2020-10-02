@@ -38,7 +38,7 @@ To optimize the success rate, I ask myself the following questions:
 
 I believe by answering these questions, the chance of success would be improve significantly, and this section would revolve around them.  
 
-### 2.1 Success rate of the mountains
+### 2.1 Success rate of the top-climbed mountains
 
 First, let's find out the success rate for different mountains. 
 ```{r,message=FALSE,warning=FALSE}
@@ -61,6 +61,7 @@ expeditions%>%
   labs(y = "Count", x = "",
        title = "The number of attempts of climbing for each mountains")+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -70,14 +71,14 @@ expeditions%>%
   )
 ```
 
-Then, we analyze how the number of successful and failing attempts changes over time. 
+Then, we analyze how the number of successful and failing attempts changes over time. From the graph, the general trend is that as time goes on, more and more attempts have been made, so both successful and failing attempts have increased. However, notice the dramatic drop of successful attempts in 2015. After searching related news online, this drop is due to the fact that an earthquake happened near Everest and caused an avalanche. People were afraid of another earthquake, so they restricted their climbing.  Details could be found [here](https://en.wikipedia.org/wiki/2015_Mount_Everest_avalanches).
 
 ```{r, warning=FALSE}
 library(plotly)
 members%>%
   ggplot(aes(x = as.integer(year),fill = success))+
   geom_histogram(bins = 100)+
-  theme(
+  theme(plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -94,14 +95,19 @@ the plunging number of attempts at 2015 is due to
 a huge earthquake happened around Everest")
 ```
 
+The graph above only shows us the big picture, so to secure our chance of making to the top, we need to focus on analyzing specific mountains. Here, in the following graph, we visualize how the number of attempts changes for the mostly climbed mountains. 
 ```{r, warning=FALSE}
 library(plotly)
-ggplotly(members%>%
+members%>%
   mutate(peak_name = fct_lump_n(peak_name,5))%>%
   filter(!is.na(peak_name))%>%
   ggplot(aes(x = year,fill = success))+
   geom_histogram(bins = 50)+
+  labs(x = "Year", y = "Count",
+       title="How the climbing attemps changes for the top-climbed  mountains?")+
   theme(
+    
+    plot.title = element_text(margin = margin(0,0,10,0),face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -110,29 +116,12 @@ ggplotly(members%>%
     plot.background = element_rect(fill ="aliceblue"),
     legend.background = element_rect(fill ="aliceblue"))+
   facet_wrap(~peak_name,scales = "free")+
-  scale_fill_brewer(palette = "Paired"))
+  scale_fill_brewer(palette = "Paired")
 ```
 
-You should Analyze the success rate for the mountains. 
+However, one should realize that usually the increasing number of successful attempts could be explained by the fact that more people are climbing the mountains. Thus, to leverage out this impact, we calculate the success rate. 
 
-```{r}
-library(plotly)
-
-ggplotly(members%>%
-  group_by(year)%>%
-  summarise(success_rate = mean(success==TRUE))%>%
-  ggplot(aes(x = year, y = success_rate, group = 1))+
-  geom_point(color = "lightskyblue3")+
-  geom_line(color = "lightskyblue3")+
-  theme(
-    panel.grid.major = element_blank(),
-    axis.ticks = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank(),
-    panel.background = element_rect(fill =  "aliceblue"),
-    plot.background = element_rect(fill ="aliceblue"),
-    legend.background = element_rect(fill ="aliceblue")))
-```
+After calculating the success rate for these mountains, we find out that even with short-term fluctuations, the success rates of only Cho Oyu, Manaslu and Everest seem to increase over time. The positive correlation is the strongest for Everest, so no wonder Everest is the mostly climbed mountains. 
 
 ```{r}
 members%>%
@@ -143,7 +132,12 @@ members%>%
   ggplot(aes(x = year, y = success_rate, group = 1))+
   geom_point(color = "lightskyblue3")+
   geom_line(color = "lightskyblue3")+
+  labs(x = "Year", y = "Success Rate",
+       title = "How does the success rate change over time?",
+       subtitle = "Only Cho Oyu, Manaslu and Everest show positive correlation between success rate and year.")+
   theme(
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 11),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -154,7 +148,11 @@ members%>%
   facet_wrap(~peak_name,scales = "free")
 ```
 
+### 2.2 Season and success rate
 
+This section would focus on this question: which season should one choose to climb the mountains? Intuitively, we would think that one should avoid climbing the mountains in winter. The weather is already freezing enough on the mountains, climbing in winter would only make things worse. But is our intuition true? The following analysis would tell us. 
+
+In fact, as the following diagram suggests, you should definitely climb different mountains in specific seasons. Take Everest for example, we see that most of the successful attempts happen in spring. That is to say, if you actually go to Evereset in other seasons, it is highly possible for you not to get to the peak successfully. If you want to climb Ama Dablam, then the favorable seasons would be autumn and winter. With the help of this graph, one should realize the importance of picking the right time to make their attempts. 
 
 ```{r}
 expeditions%>%mutate(peak_name = fct_lump_n(peak_name,5))%>%
@@ -164,7 +162,10 @@ expeditions%>%mutate(peak_name = fct_lump_n(peak_name,5))%>%
   filter(season!="Unknown")%>%
   ggplot(aes( x = status, fill = status))+
   geom_bar()+
+  labs(x = "", y = "Count",
+       title = "The number of attempts for mostly-climbed mountains in different seasons")+
   theme(
+    plot.title = element_text(face = "bold",size = 13),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -177,68 +178,14 @@ expeditions%>%mutate(peak_name = fct_lump_n(peak_name,5))%>%
   
 ```
 
-```{r}
-expeditions%>%
-  filter(peak_name=="Everest")%>%
-  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
-                                        TRUE~"Failed"))%>%
-  filter(status=="Failed")%>%
-  mutate(total_death = member_deaths+hired_staff_deaths,
-         time = highpoint_date-basecamp_date)%>%
-  ggplot(aes(x = time, y = highpoint_metres))+
-  geom_point(aes(size = total_death), alpha = 0.4)+
-  theme(
-    panel.grid.major = element_blank(),
-    axis.ticks = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank(),
-    panel.background = element_rect(fill =  "aliceblue"),
-    plot.background = element_rect(fill ="aliceblue"),
-    legend.background = element_rect(fill ="aliceblue"),
-    legend.key = element_rect(fill ="aliceblue") )
-```
+### 2.3 Number of members and success rate
 
-```{r}
-expeditions%>%
-  filter(peak_name=="Everest")%>%
-  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
-                                        TRUE~"Failed"))%>%
-  mutate(total_death = member_deaths+hired_staff_deaths,
-         time = highpoint_date-basecamp_date)%>%
-  filter(status=="Failed", total_death!=0)%>%
-  ggplot(aes(x = time, y = highpoint_metres))+
-  geom_point(aes(size = total_death), alpha = 0.4)+
-  theme(
-    panel.grid.major = element_blank(),
-    axis.ticks = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank(),
-    panel.background = element_rect(fill =  "aliceblue"),
-    plot.background = element_rect(fill ="aliceblue"),
-    legend.background = element_rect(fill ="aliceblue"),
-    legend.key = element_rect(fill ="aliceblue") )
-```
+After figuring out which season to go for a climb, the next thing to consider is your group members: how many people should you climb together with?
 
-```{r}
-members%>%filter(peak_name=="Everest")%>%
-  ggplot(aes(x= injury_height_metres))+
-  geom_histogram(fill = "lightskyblue3", color = "white")+
-  theme(
-    panel.grid.major = element_blank(),
-    axis.ticks = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank(),
-    panel.background = element_rect(fill =  "aliceblue"),
-    plot.background = element_rect(fill ="aliceblue")
-  )
-```
-
-
-change the member number into categories. 
+The graph below shows the distribution of number of group members for the mostly-climbed mountains. As the graph illustrates most of the teams are made up of 6-10 people. 
 
 ```{r}
 library(scales)
-## what is the optimal member number
 
 expeditions%>%select(expedition_id,peak_name,members,member_deaths)%>%
   inner_join(members%>%select(expedition_id,peak_name,success))%>%
@@ -259,9 +206,14 @@ expeditions%>%select(expedition_id,peak_name,members,member_deaths)%>%
                              TRUE~"41 and above")))%>%
   group_by(peak_name,members,success)%>%summarise(n = sum(n))%>%
   ggplot(aes(x = members, y = n, fill = success))+
-  geom_histogram(stat = "identity")+facet_wrap(~peak_name,scales = "free")+
+  geom_histogram(stat = "identity")+
+  labs(x = "Number of members", y = "Count",
+       title = "Distribution of number of members for the mostly climbed mountains",
+       subtitle = "It turns out 6-10 people in a group is the most popular choice.")+
+  facet_wrap(~peak_name,scales = "free")+
   theme(axis.text.x = element_text(angle = 90))+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -271,10 +223,16 @@ expeditions%>%select(expedition_id,peak_name,members,member_deaths)%>%
     legend.background = element_rect(fill ="aliceblue"))+
   scale_fill_brewer(palette = "Paired")
 
-## However, this graph doesn't tell us anything: the number of member with greatest frequency of success is also the number with greatest frequency of failure, so we turn to the success probability.
 ```
 
-```{r}
+
+However, this tells us nothing about the optimal number of members a team should have for each mountains, so we turn to calculate the success rate.
+
+When you first lay your eyes upon this graph, you may quickly notice the spike of success rate for team of 31-35 people and think to yourselves "Wow, I should really get into a group of as many people as possible". Nontheless, if you go back to the last graph, you will realize that the spike is only due to the fact that there are so few groups of more than 35 members.
+
+In particular, if you want to climb Everest, then a team of 1-5 people should help you to improve your success rate. 
+
+```{r,warning=FALSE}
 expeditions%>%select(expedition_id,peak_name,members,member_deaths)%>%
   inner_join(members%>%select(expedition_id,peak_name,success))%>%
   filter(members>0)%>%
@@ -297,9 +255,13 @@ expeditions%>%select(expedition_id,peak_name,members,member_deaths)%>%
   filter(True>0)%>%
   mutate(success_rate = True/(True+False))%>%
   ggplot(aes(x = members, y = success_rate))+
-  geom_bar(stat = "identity",fill = "skyblue3" )+facet_wrap(~peak_name,scales = "free")+
+  geom_bar(stat = "identity",fill = "skyblue3" )+
+  labs(x = "Number of members", y = "Success rate",
+       title = "Success rate for teams with different number of members")+
+  facet_wrap(~peak_name,scales = "free")+
   theme(axis.text.x = element_text(angle = 90))+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -310,7 +272,9 @@ expeditions%>%select(expedition_id,peak_name,members,member_deaths)%>%
   scale_fill_brewer(palette = "Paired")
 ```
 
-```{r}
+To digress a little bit, let's examine the relationship between member numbers and the time it takes to climb to the top. I've been wondering is it true that the more people I have in my group, the faster we will get to the peak. So I draw the graph below to answer my question. In fact, more people in your group would actually take you more time to reach the peak, suggested by the regression line of a positive gradient.
+
+```{r, warning =FALSE}
 expeditions%>%
   filter(peak_name=="Everest")%>%
   mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
@@ -318,11 +282,20 @@ expeditions%>%
   mutate(total_member = members+hired_staff,
          time = highpoint_date-basecamp_date)%>%
   filter(status=="Success")%>%
-  ggplot(aes(y = time, x = total_member))+geom_point( alpha = 0.3)+
-  scale_x_log10()+geom_smooth()
+  ggplot(aes(y = time, x = total_member))+
+  geom_point( alpha = 0.3)+
+  scale_x_log10()+
+  geom_smooth()+
+  labs(x = "Number of members in a group",
+       y = "Time it takes to get to the peak",
+       title = "The relationship between member numbers and time it takes to get to the top")+
+  theme(
+    plot.title = element_text(face = "bold",size = 12))
 ```
 
-Study if hired members proportion would affect the success. 
+### 2.4 Ratio of hired members and success rate
+
+In this section, we will answer the question "would higher ratio of hired members in a team increase the success rate?" To answer it, what we need to do is to plot the success rate of the popular mountains against the average ratio of hired members. 
 
 ```{r}
 common_mounts<-expeditions%>%
@@ -352,7 +325,8 @@ expeditions%>%filter(peak_name%in%common_mounts$peak_name)%>%
     panel.background = element_rect(fill =  "aliceblue"),
     plot.background = element_rect(fill ="aliceblue"),
     legend.background = element_rect(fill ="aliceblue"))+
-  scale_fill_brewer(palette = "Paired")
+  scale_fill_brewer(palette = "Paired")+
+  lims(x = c(-0.04,0.43))
 ```
 
 Oxygen usage:
@@ -488,3 +462,64 @@ members_clean%>%
 ```
 
 
+
+
+
+
+
+
+```{r}
+expeditions%>%
+  filter(peak_name=="Everest")%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"))%>%
+  filter(status=="Failed")%>%
+  mutate(total_death = member_deaths+hired_staff_deaths,
+         time = highpoint_date-basecamp_date)%>%
+  ggplot(aes(x = time, y = highpoint_metres))+
+  geom_point(aes(size = total_death), alpha = 0.4)+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"),
+    legend.key = element_rect(fill ="aliceblue") )
+```
+
+```{r}
+expeditions%>%
+  filter(peak_name=="Everest")%>%
+  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
+                                        TRUE~"Failed"))%>%
+  mutate(total_death = member_deaths+hired_staff_deaths,
+         time = highpoint_date-basecamp_date)%>%
+  filter(status=="Failed", total_death!=0)%>%
+  ggplot(aes(x = time, y = highpoint_metres))+
+  geom_point(aes(size = total_death), alpha = 0.4)+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"),
+    legend.key = element_rect(fill ="aliceblue") )
+```
+
+```{r}
+members%>%filter(peak_name=="Everest")%>%
+  ggplot(aes(x= injury_height_metres))+
+  geom_histogram(fill = "lightskyblue3", color = "white")+
+  theme(
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue")
+  )
+```
