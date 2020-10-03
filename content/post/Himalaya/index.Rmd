@@ -295,7 +295,9 @@ expeditions%>%
 
 ### 2.4 Ratio of hired members and success rate
 
-In this section, we will answer the question "would higher ratio of hired members in a team increase the success rate?" To answer it, what we need to do is to plot the success rate of the popular mountains against the average ratio of hired members. 
+In this section, we will answer the question "would a higher ratio of hired members in a team increase the success rate?" To answer it, what we need to do is to plot the success rate of the popular mountains against the average ratio of hired members. 
+
+To make the result meaningful, we need to first filter out the mountains that are barely climbed.
 
 ```{r}
 common_mounts<-expeditions%>%
@@ -304,6 +306,7 @@ common_mounts<-expeditions%>%
 common_mounts
 ```
 
+After filtering out some mountains, here is what we have. With the addition of a regression line, we see that the relationship between success rate and hired ratio is actually in U shape. That is to say, only a relatively high and low hired ratio would contribute to higher success rate. In the case of climbing Everest, based on this graph, maybe you should chose a higher hired ratio to boost your success rate.  
 
 ```{r}
 expeditions%>%filter(peak_name%in%common_mounts$peak_name)%>%
@@ -317,7 +320,10 @@ expeditions%>%filter(peak_name%in%common_mounts$peak_name)%>%
   geom_point()+
   geom_text(aes(label = peak_name),check_overlap = TRUE,vjust = -1)+
   geom_smooth()+
+  labs(x = "Hired Ratio", y = "Success rate",
+       title = "The relationship between hired ratio and success rate")+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -329,19 +335,22 @@ expeditions%>%filter(peak_name%in%common_mounts$peak_name)%>%
   lims(x = c(-0.04,0.43))
 ```
 
-Oxygen usage:
+### 2.5 Oxygen usage and success rate
 
-Find out the countries with most number of successful climb/ with fastest average climbing time.
+Last year, I travelled to Tibet in the end of my summer vacation. The average altitude there is about 3000-4000 meters, so my first two days were rather miserable due to the altitude sickness. Whenever I felt uncomfortable, I would inhale some pure oxygen sealed in a bottle. Trust me, oxygen could really save your life at certain point, so I do understand how important oxygen usage could be during the process of climbing the mountains in Himalay. Thus, I envision the success rate of people who used oxygen woudl be higher than those who didn't, and as the graph below shows, my guess does make sense.
 
 ```{r}
-expeditions%>%
+ggplotly(expeditions%>%
   mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
                                         TRUE~"Failed"))%>%
   filter(peak_name%in%common_mounts$peak_name)%>%
   group_by(year,oxygen_used)%>%summarise(success_rate = mean(status == "Success"))%>%
   ggplot(aes(x = year, y = success_rate, color = oxygen_used))+
   geom_point()+geom_line()+
+  labs(x = "Year", y = "Success rate",
+       title = "The annual success rate in regards of oxygen usage")+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -349,9 +358,16 @@ expeditions%>%
     panel.background = element_rect(fill =  "aliceblue"),
     plot.background = element_rect(fill ="aliceblue"),
     legend.background = element_rect(fill ="aliceblue"),
-    legend.key =  element_rect(fill ="aliceblue"))+
-  scale_color_brewer(palette = "Paired")
+    legend.key =  element_rect(fill ="aliceblue"),
+    legend.text = element_text(size = 10))+
+  scale_color_brewer(palette = "Paired"))
 ```
+
+The first recorded usage of oxygen happened around 1925, but due to the lag behind of other climbing techinque and techology, there was hardly any difference between the success rate of people using and not using oxygen.
+
+Gradually, as time goes on, the performance of these two groups begins to diverge. After 1986, the climbers who used oxygen have higher success rate than those who did not. Notice that the success rate of people using oxygen in 2019 is 0.90, which means 90% of people who successfully got to the top used oxygen when they were climbing. 
+
+Then, we turn to specific mountains to see if the pattern 
 
 ```{r}
 expeditions%>%
@@ -364,6 +380,7 @@ expeditions%>%
   ggplot(aes(x = oxygen_used, y = success_rate, fill = oxygen_used))+
   geom_col()+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -375,19 +392,31 @@ expeditions%>%
   facet_wrap(~peak_name)
 ```
 
+### 2.6 Citizenship and success rate
+
 ```{r}
 top_countries<-peaks%>%filter(!is.na(first_ascent_country), first_ascent_year>1000)%>%
   separate_rows(first_ascent_country,sep = ", ")%>%
   count(first_ascent_country,sort = TRUE)%>%head(10)
 
-ggplotly(peaks%>%filter(!is.na(first_ascent_country), 
+peaks%>%filter(!is.na(first_ascent_country), 
                first_ascent_year>1000)%>%
   separate_rows(first_ascent_country,sep = ", ")%>%
   add_count(first_ascent_country,sort = TRUE)%>%
   filter(first_ascent_country%in%top_countries$first_ascent_country)%>%
   mutate(first_ascent_country = reorder(first_ascent_country,n))%>%
   ggplot(aes(x = first_ascent_year, y = first_ascent_country))+
-  geom_point(aes(size = height_metres),alpha = 0.3))
+  geom_point(aes(size = height_metres),alpha = 0.3)+
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(fill =  "aliceblue"),
+    plot.background = element_rect(fill ="aliceblue"),
+    legend.background = element_rect(fill ="aliceblue"),
+    legend.key =  element_rect(fill ="aliceblue"))
 ```
 
 ```{r}
@@ -405,6 +434,7 @@ members_clean%>%
                size = 2.3,
                alpha = 0.5, color = "skyblue3" )+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -415,10 +445,11 @@ members_clean%>%
 
 ```
 
+### 2.7 Other factors that affect success rate
 
 ```{r}
 
-members_clean%>%
+ggplotly(members_clean%>%
   filter(!is.na(sex),
          !is.na(age))%>%
   add_count(sex,age,sort = TRUE)%>%
@@ -428,15 +459,16 @@ members_clean%>%
   ggplot(aes(x = age, y = success_rate, color = sex))+
   geom_point()+geom_line()+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
     panel.border = element_blank(),
     panel.background = element_rect(fill =  "aliceblue"),
     plot.background = element_rect(fill ="aliceblue"),
-    legend.background = element_rect(fill ="aliceblue"))+
-  scale_color_brewer(palette = "Paired")+
-  facet_wrap(~sex)
+    legend.background = element_rect(fill ="aliceblue"),
+    legend.key = element_rect(fill ="aliceblue"))+
+  scale_color_brewer(palette = "Paired"))
 ```
 
 ```{r}
@@ -451,6 +483,7 @@ members_clean%>%
                size = 2.3,
                alpha = 0.5, color = "skyblue3")+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -464,9 +497,7 @@ members_clean%>%
 
 
 
-
-
-
+## 3. Death and injury
 
 ```{r}
 expeditions%>%
@@ -479,6 +510,7 @@ expeditions%>%
   ggplot(aes(x = time, y = highpoint_metres))+
   geom_point(aes(size = total_death), alpha = 0.4)+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -500,6 +532,7 @@ expeditions%>%
   ggplot(aes(x = time, y = highpoint_metres))+
   geom_point(aes(size = total_death), alpha = 0.4)+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
@@ -515,6 +548,7 @@ members%>%filter(peak_name=="Everest")%>%
   ggplot(aes(x= injury_height_metres))+
   geom_histogram(fill = "lightskyblue3", color = "white")+
   theme(
+    plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
     axis.ticks = element_blank(),
     panel.grid.minor = element_blank(),
