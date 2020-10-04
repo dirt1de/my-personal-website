@@ -402,7 +402,9 @@ expeditions%>%
 
 ### 2.6 Citizenship and success rate
 
-Next, we study the relationship between success rate and citizenship. First, let's take a glimpse at the general picture of each country's performance. In the following graph, we select and rank the top 10 countries which conquered the most number of mountains that hadn't been climbed before. We have also annotated the top 10 mountains with the most climbing attempts in the graph.
+Next, we study the relationship between success rate and citizenship. First, let's take a glimpse at the general picture of each country's performance. In the following graph, we select and rank the top 10 countries which conquered the most number of mountains that hadn't been climbed before. Based on it, we see that Nepal, Japan, and UK are the top three countries that conquered the most virgin peaks. 
+
+We have also annotated the top 10 mountains with the most climbing attempts in the graph. Notice that strangely, all of these mountains were first climbed around 1950.
 
 
 ```{r}
@@ -438,6 +440,8 @@ peaks%>%filter(!is.na(first_ascent_country),
     legend.key =  element_rect(fill ="aliceblue"))
 ```
 
+Next, we study the success rate of members from different countries. From the graph below, we see that Nepal, China, and India are the countries with the highest success rate. In this way, you should probably join a group with members of these citizenship. 
+
 ```{r}
 members_clean<-members%>%select(sex, age, citizenship, expedition_role,success)
 
@@ -452,6 +456,8 @@ members_clean%>%
   geom_segment(aes(x = 0, xend = success_rate, y = citizenship, yend = citizenship),
                size = 2.3,
                alpha = 0.5, color = "skyblue3" )+
+  labs(x = "Success rate", y ="",
+       title = "Top 10 countries with the highest success rate")+
   theme(
     plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
@@ -466,9 +472,14 @@ members_clean%>%
 
 ### 2.7 Other factors that affect success rate
 
-```{r}
+To make the analysis more comprehensive, in this section, we will examine other factors that might affect the success rate. 
 
-ggplotly(members_clean%>%
+To begin with, we focus on the age and gender. Based on the graph, we see that as people ages, the success rate gradually decreases. That is to say, experience in life would not really help you to climb mcuh better. 
+
+In addition, from the age of 20 to about 50, male climbers tend to have a higher success rate than female climbers. After the age of 50, female climbers start to take the lead in the success rate. One should notice that at the age of 63, there is a huge difference of the success rate between male and female climbers. 
+
+```{r}
+members_clean%>%
   filter(!is.na(sex),
          !is.na(age))%>%
   add_count(sex,age,sort = TRUE)%>%
@@ -476,7 +487,17 @@ ggplotly(members_clean%>%
   group_by(sex,age)%>%
   summarise(success_rate = mean(success == "TRUE"))%>%
   ggplot(aes(x = age, y = success_rate, color = sex))+
+  annotate("text", x = 20,y = 0.68, label = "(16,0.68)")+
+  annotate("text", x = 17,y = 0.46, label = "(16,0.5)")+
+  annotate("text", x = 67,y = 0.52, label = "(63,0.52)")+
+  annotate("text", x = 67,y = 0.26, label = "(63,0.222)")+
+  annotate("point", x = 16,y = 0.68, colour = "orange", size = 3)+
+  annotate("point", x = 16,y = 0.5, colour = "orange", size = 3)+
+  annotate("point", x = 63,y = 0.52, colour = "orange", size = 3)+
+  annotate("point", x = 63,y = 0.222, colour = "orange", size = 3)+
   geom_point()+geom_line()+
+  labs(x = "Age", y = "Success rate", fill = "Gender",
+       title = "The relationship between success rate and age, together with gender")+
   theme(
     plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
@@ -487,8 +508,10 @@ ggplotly(members_clean%>%
     plot.background = element_rect(fill ="aliceblue"),
     legend.background = element_rect(fill ="aliceblue"),
     legend.key = element_rect(fill ="aliceblue"))+
-  scale_color_brewer(palette = "Paired"))
+  scale_color_brewer(palette = "Paired")
 ```
+
+Then we analyze the success rate of the positions in the team. As it turns out, the H-A assistant, H-A worker, and climbing leader have the highest success rate. The reason could be that their important positions indirectly reflect their climbing ability. As a result, they tend to have a higher success rate. 
 
 ```{r}
 members_clean%>%
@@ -513,32 +536,11 @@ members_clean%>%
   
 ```
 
-
-
-
 ## 3. Death and injury
 
-```{r}
-expeditions%>%
-  filter(peak_name=="Everest")%>%
-  mutate(status = case_when(str_detect(termination_reason, "Success")~"Success",
-                                        TRUE~"Failed"))%>%
-  filter(status=="Failed")%>%
-  mutate(total_death = member_deaths+hired_staff_deaths,
-         time = highpoint_date-basecamp_date)%>%
-  ggplot(aes(x = time, y = highpoint_metres))+
-  geom_point(aes(size = total_death), alpha = 0.4)+
-  theme(
-    plot.title = element_text(face = "bold"),
-    panel.grid.major = element_blank(),
-    axis.ticks = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank(),
-    panel.background = element_rect(fill =  "aliceblue"),
-    plot.background = element_rect(fill ="aliceblue"),
-    legend.background = element_rect(fill ="aliceblue"),
-    legend.key = element_rect(fill ="aliceblue") )
-```
+The topic in this section is a little heavy, but we have to study it so that we could come back alive after the expeditions. The main focus is to find out what is the most deadly altitude of the mountains. 
+
+After studying the dataset closely, I plot the following graph. It filters out all the successful climbings and those without death. From this graph, we see that the majority of death happens 25 days after the teams left the basecamp. In addition, most of the death occurs at the altitude over 8000 meters, which is to say that most of people died when they were going to reach the top. 
 
 ```{r}
 expeditions%>%
@@ -550,6 +552,9 @@ expeditions%>%
   filter(status=="Failed", total_death!=0)%>%
   ggplot(aes(x = time, y = highpoint_metres))+
   geom_point(aes(size = total_death), alpha = 0.4)+
+  labs(x = "Time spent after teams left basecamp",
+       y="Altitude", 
+       title = "When and where does the death occurs?")+
   theme(
     plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
@@ -562,10 +567,15 @@ expeditions%>%
     legend.key = element_rect(fill ="aliceblue") )
 ```
 
+We then switch to see the injury situation, and once again, we reach a similar conclusion. Based on the plot below, most of the injury occurs at the altitude almost reaching the peak. 
+
 ```{r}
 members%>%filter(peak_name=="Everest")%>%
   ggplot(aes(x= injury_height_metres))+
   geom_histogram(fill = "lightskyblue3", color = "white")+
+  labs(x = "Altitude when injury occurs",
+       y = "Count",
+       title = "Where does injury happens?")+
   theme(
     plot.title = element_text(face = "bold"),
     panel.grid.major = element_blank(),
@@ -576,3 +586,90 @@ members%>%filter(peak_name=="Everest")%>%
     plot.background = element_rect(fill ="aliceblue")
   )
 ```
+
+These two graphs really give us a lot of insights on how to successfully conquere the mountains: we should never relax a single bit only until we step our feet on the ground of the peaks. My speculation for the death and injury around the peak is that a lot of people  suddenly loosened up the extreme stress they had been exerting on themseleves when they realized success is almost at hand.  As a result of the changing mentality, they neglected certain dangerous elements that they would have noticed. 
+
+## 4. Build the machine learning model
+
+```{r}
+library(tidymodels)
+members_selected<-members%>%
+  filter(season!="Unknown",
+         !is.na(sex), 
+         !is.na(citizenship),
+         !is.na(age),
+         !is.na(expedition_role),
+         !is.na(oxygen_used),
+         !is.na(peak_name),
+         !is.na(age))%>%
+  select(-member_id,-expedition_id,-peak_id,-died,-death_cause,
+         -death_height_metres,-injured,-injury_type,-hired,-solo,
+         -injury_height_metres,-highpoint_metres)%>%
+  mutate(success = case_when(success == "TRUE"~"True",
+                             success == "FALSE"~"False"))%>%
+  mutate_if(is.character,factor)%>%
+  mutate_if(is.logical,as.integer)
+
+set.seed(1234)
+member_split<-initial_split(members_selected,strata = success)
+
+member_train <- training(member_split)
+member_test <- testing(member_split)
+
+member_fold <- vfold_cv(member_train, strata = success)
+```
+
+
+```{r}
+member_recipe<-recipe(success~., data = member_train)%>%
+  step_other(peak_name,expedition_role,citizenship)%>%
+  step_dummy(all_nominal(),-success)%>%
+  step_normalize(all_predictors())%>%
+  step_zv(all_predictors())
+
+prep(member_recipe)%>%juice()
+```
+
+
+```{r}
+lr_model <- logistic_reg()%>%set_engine("glm")
+
+rf_model <- rand_forest()%>%set_mode("classification")%>%set_engine("ranger",importance = "permutation")
+```
+
+
+```{r}
+lr_wf<-workflow()%>%add_recipe(member_recipe)%>%add_model(lr_model)
+
+rf_wf<-workflow()%>%add_recipe(member_recipe)%>%add_model(rf_model)
+
+```
+
+
+```{r,message=FALSE}
+set.seed(125)
+lr_result<-lr_wf%>%fit_resamples(resamples = member_fold,
+                      control = control_resamples(save_pred = TRUE,verbose = TRUE))
+
+rf_result<-rf_wf%>%fit_resamples(resamples = member_fold,
+                      control = control_resamples(save_pred = TRUE, verbose = TRUE))
+```
+
+```{r}
+lr_result%>%collect_metrics()
+rf_result%>%collect_metrics()
+```
+
+```{r}
+library(vip)
+rf_model%>%
+  fit(
+    success~.,
+    prep(member_recipe)%>%juice())%>%
+  vip(geom = "point")
+```
+
+
+
+
+
