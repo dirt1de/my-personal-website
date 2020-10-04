@@ -2,7 +2,7 @@
 title: How to conquer the mountains in Himalaya?
 author: Xuxin Zhang
 date: '2020-10-01'
-slug: how-to-conquer-the-moutains-in-himalaya
+slug: how-to-conquer-the-mountains-in-himalaya
 categories:
   - R project
 tags:
