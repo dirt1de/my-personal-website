@@ -1,5 +1,5 @@
 ---
-title: How to conquer the moutains in Himalaya?
+title: How to conquer the mountains in Himalaya?
 author: Xuxin Zhang
 date: '2020-10-01'
 slug: how-to-conquer-the-moutains-in-himalaya
@@ -95,7 +95,8 @@ the plunging number of attempts at 2015 is due to
 a huge earthquake happened around Everest")
 ```
 
-The graph above only shows us the big picture, so to secure our chance of making to the top, we need to focus on analyzing specific mountains. Here, in the following graph, we visualize how the number of attempts changes for the mostly climbed mountains. 
+The graph above only shows us the big picture, so to secure our chance of making to the top, we need to focus on analyzing specific mountains. Here, in the following graph, we visualize how the number of attempts changes for the mostly climbed mountains.s
+
 ```{r, warning=FALSE}
 library(plotly)
 members%>%
@@ -587,7 +588,7 @@ members%>%filter(peak_name=="Everest")%>%
   )
 ```
 
-These two graphs really give us a lot of insights on how to successfully conquere the mountains: we should never relax a single bit only until we step our feet on the ground of the peaks. My speculation for the death and injury around the peak is that a lot of people  suddenly loosened up the extreme stress they had been exerting on themseleves when they realized success is almost at hand.  As a result of the changing mentality, they neglected certain dangerous elements that they would have noticed. 
+These two graphs really give us a lot of insights on how to successfully conquer the mountains: we should never relax a single bit only until we step our feet on the ground of the peaks. My speculation for the death and injury around the peak is that a lot of people  suddenly loosened up the extreme stress they had been exerting on themseleves when they realized success is almost at hand.  As a result of the changing mentality, they neglected certain dangerous elements that they would have noticed. 
 
 ## 4. Build the machine learning model
 
