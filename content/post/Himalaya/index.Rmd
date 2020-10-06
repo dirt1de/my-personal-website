@@ -1,17 +1,17 @@
 ---
 title: How to conquer the mountains in Himalaya?
 author: Xuxin Zhang
-date: '2020-10-01'
+date: '2020-10-06'
 slug: how-to-conquer-the-mountains-in-himalaya
 categories:
   - R project
 tags:
-  - data analysis
+  - data visualization
   - tidymodel
 subtitle: ''
 summary: ''
 authors: []
-lastmod: '2020-10-01T18:22:36+08:00'
+lastmod: '2020-10-06T15:15:43+08:00'
 featured: no
 image:
   caption: ''
@@ -669,6 +669,7 @@ rf_model%>%
     prep(member_recipe)%>%juice())%>%
   vip(geom = "point")
 ```
+
 
 
 
