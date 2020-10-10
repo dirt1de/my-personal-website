@@ -1,0 +1,133 @@
+---
+title: 'Back to the old school '
+author: Xuxin Zhang
+date: '2020-10-10'
+slug: back-to-the-old-school
+categories:
+  - R project
+tags:
+  - data visualization
+  - data analysis
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-10-10T19:21:58+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+
+
+<p>I want to find out the golden age of rap music.</p>
+<pre class="r"><code>library(tidyverse)
+library(hrbrthemes)
+library(gganimate)
+library(plotly)
+polls &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/polls.csv&#39;)
+rankings &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/rankings.csv&#39;)</code></pre>
+<pre class="r"><code>polls%&gt;%
+  group_by(year)%&gt;%
+  summarise(av_rank = mean(rank))%&gt;%
+  ggplot(aes(x = year, y = av_rank),group = 1)+
+  geom_point(color = ft_cols$yellow)+
+  geom_line(color = ft_cols$white)+
+  geom_smooth(color = ft_cols$white)+
+  labs(x = &quot;Year&quot;,
+       y = &quot;Average ranking&quot;,
+       title = &quot;How the average ranking changes across time?&quot;,
+       subtitle = &quot;The regression result shows that the average ranking is increasing,
+which means the quality of the rap musics decreases over time.&quot;
+       )+ 
+  theme_ft_rc()</code></pre>
+<pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<pre class="r"><code>polls%&gt;%
+  filter(gender!=&quot;mixed&quot;)%&gt;%
+  group_by(year,gender)%&gt;%
+  summarise(av_rank = mean(rank))%&gt;%
+  ggplot(aes(x = year, y = av_rank,color = gender))+
+  geom_point()+
+  geom_line()+
+  labs(x = &quot;Year&quot;,
+       y = &quot;Average ranking&quot;,
+       title = &quot;How the average ranking changes for different genders?&quot;,
+       color = &quot;&quot;
+       )+
+  geom_smooth()+
+  facet_wrap(~gender,scales = &quot;free_x&quot;)+
+  scale_color_manual(values =  c(&quot;yellow&quot;,&quot;white&quot;))+ 
+  theme_ft_rc()+
+  theme(legend.position = &quot;null&quot;)</code></pre>
+<pre><code>## `summarise()` regrouping output by &#39;year&#39; (override with `.groups` argument)</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<pre class="r"><code>polls%&gt;%
+  filter(gender!=&quot;mixed&quot;)%&gt;%
+  group_by(gender)%&gt;%
+  count(artist,sort=TRUE)%&gt;%
+  top_n(5)%&gt;%
+  ggplot(aes(x = n, y = reorder(artist,n), color = gender))+
+  geom_point(size = 4)+
+  geom_segment(aes(x = 0,xend = n, y = artist, yend = artist),size = 3, alpha = 0.5)+
+  geom_text(aes(label = n),hjust = 2)+
+  scale_color_manual(values =  c(&quot;yellow&quot;,&quot;white&quot;))+
+  labs(x = &quot;Nomination number&quot;,
+       y = &quot;Artists&quot;,
+       title = &quot;The top 5 artists with\n most nomination for each gender&quot;)+
+  theme_ft_rc()</code></pre>
+<pre><code>## Selecting by n</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<pre class="r"><code>library(ggrepel)
+top_artists_ranking&lt;-polls%&gt;%
+  add_count(artist)%&gt;%filter(n&gt;7)%&gt;%
+  group_by(artist)%&gt;%
+  summarise(av_ranking = mean(rank))%&gt;%
+  ungroup()%&gt;%
+  top_n(15,-av_ranking)</code></pre>
+<pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
+<pre class="r"><code>polls%&gt;%
+  inner_join(top_artists_ranking)%&gt;%
+  add_count(title)%&gt;%
+  mutate(title_for_graph = ifelse(n&gt;=10,title,&quot;&quot;))%&gt;%
+  ggplot(aes(x = year, y = reorder(artist,-av_ranking)))+
+  geom_point(aes(size = n),color = ft_cols$yellow,alpha = 0.15)+
+  geom_text(aes(label = title_for_graph),
+            color = &quot;white&quot;,
+            hjust = -0.1)+ 
+  labs(x = &quot;Year&quot;, y = &quot;&quot;,
+       title = &quot;Ranking of artists based on polls&quot;)+ 
+  theme_ft_rc()+
+  theme(legend.position = &quot;null&quot;)</code></pre>
+<pre><code>## Joining, by = &quot;artist&quot;</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<pre class="r"><code>top_ranking_gender&lt;-rankings%&gt;%
+  distinct(ID,title, artist, gender, points)%&gt;%
+  group_by(gender)%&gt;%
+  top_n(5,points)</code></pre>
+<pre class="r"><code>rankings%&gt;%
+  filter(ID!=70)%&gt;%
+  mutate(title_for_plot = ifelse(title%in%top_ranking_gender$title,title, &quot;&quot;))%&gt;%
+  ggplot(aes(x = year, y = points, color = gender))+
+  geom_point(alpha = 0.6)+
+  geom_text_repel(aes(label = title_for_plot),force = 20)+
+  scale_y_log10()+geom_smooth(color = &quot;white&quot;)+
+  labs(title = &quot;How does quality of songs change through time?&quot;)+
+  scale_color_manual(values = c(&quot;indianred1&quot;,&quot;yellow&quot;,&quot;white&quot;))+ 
+  theme_ft_rc()</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code>library(tidytext)
+
+title_words&lt;-rankings%&gt;%
+  distinct(title)%&gt;%
+  unnest_tokens(word, title)%&gt;%
+  anti_join(stop_words)%&gt;%
+  count(word,sort = TRUE)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>write.csv(title_words,&quot;/Users/xuxian/Documents/UCLA related/R/Projects/2020 rap stars/title_words.csv&quot;)</code></pre>
+<p><img src="/media/rap.png" /></p>

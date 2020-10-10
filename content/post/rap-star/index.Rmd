@@ -1,0 +1,152 @@
+---
+title: 'Back to the old school '
+author: Xuxin Zhang
+date: '2020-10-10'
+slug: back-to-the-old-school
+categories:
+  - R project
+tags:
+  - data visualization
+  - data analysis
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-10-10T19:21:58+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+I want to find out the golden age of rap music. 
+
+```{r,message=FALSE, warning=FALSE}
+library(tidyverse)
+library(hrbrthemes)
+library(gganimate)
+library(plotly)
+polls <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/polls.csv')
+rankings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/rankings.csv')
+```
+
+```{r}
+polls%>%
+  group_by(year)%>%
+  summarise(av_rank = mean(rank))%>%
+  ggplot(aes(x = year, y = av_rank),group = 1)+
+  geom_point(color = ft_cols$yellow)+
+  geom_line(color = ft_cols$white)+
+  geom_smooth(color = ft_cols$white)+
+  labs(x = "Year",
+       y = "Average ranking",
+       title = "How the average ranking changes across time?",
+       subtitle = "The regression result shows that the average ranking is increasing,
+which means the quality of the rap musics decreases over time."
+       )+ 
+  theme_ft_rc()
+```
+
+```{r}
+polls%>%
+  filter(gender!="mixed")%>%
+  group_by(year,gender)%>%
+  summarise(av_rank = mean(rank))%>%
+  ggplot(aes(x = year, y = av_rank,color = gender))+
+  geom_point()+
+  geom_line()+
+  labs(x = "Year",
+       y = "Average ranking",
+       title = "How the average ranking changes for different genders?",
+       color = ""
+       )+
+  geom_smooth()+
+  facet_wrap(~gender,scales = "free_x")+
+  scale_color_manual(values =  c("yellow","white"))+ 
+  theme_ft_rc()+
+  theme(legend.position = "null")
+```
+
+
+```{r}
+polls%>%
+  filter(gender!="mixed")%>%
+  group_by(gender)%>%
+  count(artist,sort=TRUE)%>%
+  top_n(5)%>%
+  ggplot(aes(x = n, y = reorder(artist,n), color = gender))+
+  geom_point(size = 4)+
+  geom_segment(aes(x = 0,xend = n, y = artist, yend = artist),size = 3, alpha = 0.5)+
+  geom_text(aes(label = n),hjust = 2)+
+  scale_color_manual(values =  c("yellow","white"))+
+  labs(x = "Nomination number",
+       y = "Artists",
+       title = "The top 5 artists with\n most nomination for each gender")+
+  theme_ft_rc()
+```
+
+
+```{r}
+library(ggrepel)
+top_artists_ranking<-polls%>%
+  add_count(artist)%>%filter(n>7)%>%
+  group_by(artist)%>%
+  summarise(av_ranking = mean(rank))%>%
+  ungroup()%>%
+  top_n(15,-av_ranking)
+
+polls%>%
+  inner_join(top_artists_ranking)%>%
+  add_count(title)%>%
+  mutate(title_for_graph = ifelse(n>=10,title,""))%>%
+  ggplot(aes(x = year, y = reorder(artist,-av_ranking)))+
+  geom_point(aes(size = n),color = ft_cols$yellow,alpha = 0.15)+
+  geom_text(aes(label = title_for_graph),
+            color = "white",
+            hjust = -0.1)+ 
+  labs(x = "Year", y = "",
+       title = "Ranking of artists based on polls")+ 
+  theme_ft_rc()+
+  theme(legend.position = "null")
+```
+
+
+```{r}
+top_ranking_gender<-rankings%>%
+  distinct(ID,title, artist, gender, points)%>%
+  group_by(gender)%>%
+  top_n(5,points)
+```
+
+
+```{r}
+rankings%>%
+  filter(ID!=70)%>%
+  mutate(title_for_plot = ifelse(title%in%top_ranking_gender$title,title, ""))%>%
+  ggplot(aes(x = year, y = points, color = gender))+
+  geom_point(alpha = 0.6)+
+  geom_text_repel(aes(label = title_for_plot),force = 20)+
+  scale_y_log10()+geom_smooth(color = "white")+
+  labs(title = "How does quality of songs change through time?")+
+  scale_color_manual(values = c("indianred1","yellow","white"))+ 
+  theme_ft_rc()
+```
+
+
+
+
+```{r}
+library(tidytext)
+
+title_words<-rankings%>%
+  distinct(title)%>%
+  unnest_tokens(word, title)%>%
+  anti_join(stop_words)%>%
+  count(word,sort = TRUE)
+
+
+
+write.csv(title_words,"/Users/xuxian/Documents/UCLA related/R/Projects/2020 rap stars/title_words.csv")
+```
+
+![](/media/rap.png)
