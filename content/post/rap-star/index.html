@@ -105,22 +105,43 @@ top_artists_ranking&lt;-polls%&gt;%
   theme(legend.position = &quot;null&quot;)</code></pre>
 <pre><code>## Joining, by = &quot;artist&quot;</code></pre>
 <p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
-<pre class="r"><code>top_ranking_gender&lt;-rankings%&gt;%
-  distinct(ID,title, artist, gender, points)%&gt;%
-  group_by(gender)%&gt;%
-  top_n(5,points)</code></pre>
 <pre class="r"><code>rankings%&gt;%
   filter(ID!=70)%&gt;%
-  mutate(title_for_plot = ifelse(title%in%top_ranking_gender$title,title, &quot;&quot;))%&gt;%
   ggplot(aes(x = year, y = points, color = gender))+
   geom_point(alpha = 0.6)+
-  geom_text_repel(aes(label = title_for_plot),force = 20)+
   scale_y_log10()+geom_smooth(color = &quot;white&quot;)+
   labs(title = &quot;How does quality of songs change through time?&quot;)+
   scale_color_manual(values = c(&quot;indianred1&quot;,&quot;yellow&quot;,&quot;white&quot;))+ 
   theme_ft_rc()</code></pre>
 <pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>rankings%&gt;%
+  group_by(year)%&gt;%
+  summarise(av_points = mean(points))%&gt;%
+  ggplot(aes(x = year, y = av_points),group = 1)+
+  geom_point(color = ft_cols$yellow)+
+  geom_line(color = ft_cols$white)+
+  labs(x = &quot;Year&quot;,
+       y = &quot;Average ranking&quot;
+       )+ 
+  theme_ft_rc()</code></pre>
+<pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
 <p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code>top_ranking_gender&lt;-rankings%&gt;%
+  distinct(ID,year,title, artist, gender, points)%&gt;%
+  group_by(gender)%&gt;%
+  top_n(10,points)%&gt;%
+  ungroup()</code></pre>
+<pre class="r"><code>top_ranking_gender%&gt;%
+  ggplot(aes(x = year, y = points, color = gender))+
+  geom_point(aes(size = points*500))+
+  scale_color_manual(values = c(&quot;indianred1&quot;,&quot;yellow&quot;,&quot;white&quot;))+
+  geom_text_repel(aes(label = title), force = 20)+
+  labs(title=&quot;The top 10 songs performed by artists of each gender &quot;)+
+  theme_ft_rc()+
+  scale_y_log10()+
+  theme(legend.position = &quot;null&quot;)</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
 <pre class="r"><code>library(tidytext)
 
 title_words&lt;-rankings%&gt;%
