@@ -19,7 +19,12 @@ image:
   preview_only: no
 projects: []
 ---
-I want to find out the golden age of rap music. 
+## 1. Introduction
+I have a rap-enthusiast friend whom I have known for a long time. We became friends when we were still in kindergarten. Now he's operating his own vintage outfit store. Every single time I visit him, he will definitely play some old school rap music in his store. Under his influence, I have get myself familiar with the names of those OG rappers such as Biggie, Tupac, and NWA. 
+
+Gradually, I notice that he seldom plays the "new" rap songs such as mumble-rap and trap. One time I asked him why so, and he said "I just love the old school rap. They are much realer if you know what I mean." Well, to be honest, I don't, and that's exactly why I'm writing this post to analyze the rap musics of different time. Hopefully, I can find out the golden age of rap music.
+
+## 2. Data analysis and visualization
 
 ```{r,message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -30,6 +35,9 @@ polls <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidy
 rankings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/rankings.csv')
 ```
 
+After importing the data, we first focus on the poll data since its sample size is larger. With the poll data, because the only variable that reflects the quality of these songs is `rank`, we will calculate the average rank of the nominated songs for each year to show how the quality varies across time. 
+
+Based on this graph and the help of the regression line, we see that the trend for the average numerical value of the ranking is actually increasing over time. That is to say, the quality, on the contrary, is decreasing. 
 ```{r}
 polls%>%
   group_by(year)%>%
@@ -133,8 +141,8 @@ rankings%>%
   geom_point(color = ft_cols$yellow)+
   geom_line(color = ft_cols$white)+
   labs(x = "Year",
-       y = "Average ranking"
-       )+ 
+       y = "Average ranking",
+       title = "How does the average points change?")+ 
   theme_ft_rc()
 ```
 
@@ -150,33 +158,49 @@ top_ranking_gender<-rankings%>%
 ```
 
 
-
 ```{r}
 top_ranking_gender%>%
   ggplot(aes(x = year, y = points, color = gender))+
   geom_point(aes(size = points*500))+
   scale_color_manual(values = c("indianred1","yellow","white"))+
+  labs(title="Points distribution of top 10 songs \nperformed by artists of each gender ")+
+  theme_ft_rc()+
+  scale_y_log10()+
+  scale_size_continuous(guide = FALSE)
+```
+
+
+```{r}
+top_ranking_gender%>%
+  ggplot(aes(x = year, y = points, color = gender))+
+  scale_color_manual(values = c("indianred1","yellow","white"))+
   geom_text_repel(aes(label = title), force = 20)+
   labs(title="The top 10 songs performed by artists of each gender ")+
   theme_ft_rc()+
-  scale_y_log10()+
-  theme(legend.position = "null")
+  scale_y_log10()
 ```
 
+
+![](/media/rap.png)
 
 
 ```{r}
 library(tidytext)
 
-title_words<-rankings%>%
-  distinct(title)%>%
+rankings%>%
+  distinct(title, year)%>%
   unnest_tokens(word, title)%>%
   anti_join(stop_words)%>%
-  count(word,sort = TRUE)
-
-
-
-write.csv(title_words,"/Users/xuxian/Documents/UCLA related/R/Projects/2020 rap stars/title_words.csv")
+  inner_join(get_sentiments("afinn"))%>%
+  group_by(year)%>%
+  summarise(av_sent = mean(value, na.rm = TRUE))%>%
+  ggplot(aes(x = year, y = av_sent), group=1)+
+  geom_point(color = "yellow")+geom_line(color = "white")+
+  geom_smooth(se=FALSE, color = "white", alpha = 0.6)+
+  labs(y = "Average sentiment",
+       title = "How does the average sentiment for the titles change?")+
+  theme_ft_rc()
 ```
 
-![](/media/rap.png)
+
+

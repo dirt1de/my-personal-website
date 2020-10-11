@@ -22,13 +22,21 @@ projects: []
 
 
 
-<p>I want to find out the golden age of rap music.</p>
+<div id="introduction" class="section level2">
+<h2>1. Introduction</h2>
+<p>I have a rap-enthusiast friend whom I have known for a long time. We became friends when we were still in kindergarten. Now he’s operating his own vintage outfit store. Every single time I visit him, he will definitely play some old school rap music in his store. Under his influence, I have get myself familiar with the names of those OG rappers such as Biggie, Tupac, and NWA.</p>
+<p>Gradually, I notice that he seldom plays the “new” rap songs such as mumble-rap and trap. One time I asked him why so, and he said “I just love the old school rap. They are much realer if you know what I mean.” Well, to be honest, I don’t, and that’s exactly why I’m writing this post to analyze the rap musics of different time. Hopefully, I can find out the golden age of rap music.</p>
+</div>
+<div id="data-analysis-and-visualization" class="section level2">
+<h2>2. Data analysis and visualization</h2>
 <pre class="r"><code>library(tidyverse)
 library(hrbrthemes)
 library(gganimate)
 library(plotly)
 polls &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/polls.csv&#39;)
 rankings &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/rankings.csv&#39;)</code></pre>
+<p>After importing the data, we first focus on the poll data since its sample size is larger. With the poll data, because the only variable that reflects the quality of these songs is <code>rank</code>, we will calculate the average rank of the nominated songs for each year to show how the quality varies across time.</p>
+<p>Based on this graph and the help of the regression line, we see that the trend for the average numerical value of the ranking is actually increasing over time. That is to say, the quality, on the contrary, is decreasing.</p>
 <pre class="r"><code>polls%&gt;%
   group_by(year)%&gt;%
   summarise(av_rank = mean(rank))%&gt;%
@@ -122,8 +130,8 @@ top_artists_ranking&lt;-polls%&gt;%
   geom_point(color = ft_cols$yellow)+
   geom_line(color = ft_cols$white)+
   labs(x = &quot;Year&quot;,
-       y = &quot;Average ranking&quot;
-       )+ 
+       y = &quot;Average ranking&quot;,
+       title = &quot;How does the average points change?&quot;)+ 
   theme_ft_rc()</code></pre>
 <pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
 <p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
@@ -136,19 +144,38 @@ top_artists_ranking&lt;-polls%&gt;%
   ggplot(aes(x = year, y = points, color = gender))+
   geom_point(aes(size = points*500))+
   scale_color_manual(values = c(&quot;indianred1&quot;,&quot;yellow&quot;,&quot;white&quot;))+
+  labs(title=&quot;Points distribution of top 10 songs \nperformed by artists of each gender &quot;)+
+  theme_ft_rc()+
+  scale_y_log10()+
+  scale_size_continuous(guide = FALSE)</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<pre class="r"><code>top_ranking_gender%&gt;%
+  ggplot(aes(x = year, y = points, color = gender))+
+  scale_color_manual(values = c(&quot;indianred1&quot;,&quot;yellow&quot;,&quot;white&quot;))+
   geom_text_repel(aes(label = title), force = 20)+
   labs(title=&quot;The top 10 songs performed by artists of each gender &quot;)+
   theme_ft_rc()+
-  scale_y_log10()+
-  theme(legend.position = &quot;null&quot;)</code></pre>
-<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+  scale_y_log10()</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p><img src="/media/rap.png" /></p>
 <pre class="r"><code>library(tidytext)
 
-title_words&lt;-rankings%&gt;%
-  distinct(title)%&gt;%
+rankings%&gt;%
+  distinct(title, year)%&gt;%
   unnest_tokens(word, title)%&gt;%
   anti_join(stop_words)%&gt;%
-  count(word,sort = TRUE)</code></pre>
-<pre><code>## Joining, by = &quot;word&quot;</code></pre>
-<pre class="r"><code>write.csv(title_words,&quot;/Users/xuxian/Documents/UCLA related/R/Projects/2020 rap stars/title_words.csv&quot;)</code></pre>
-<p><img src="/media/rap.png" /></p>
+  inner_join(get_sentiments(&quot;afinn&quot;))%&gt;%
+  group_by(year)%&gt;%
+  summarise(av_sent = mean(value, na.rm = TRUE))%&gt;%
+  ggplot(aes(x = year, y = av_sent), group=1)+
+  geom_point(color = &quot;yellow&quot;)+geom_line(color = &quot;white&quot;)+
+  geom_smooth(se=FALSE, color = &quot;white&quot;, alpha = 0.6)+
+  labs(y = &quot;Average sentiment&quot;,
+       title = &quot;How does the average sentiment for the titles change?&quot;)+
+  theme_ft_rc()</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;
+## Joining, by = &quot;word&quot;</code></pre>
+<pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+</div>
