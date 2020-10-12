@@ -25,18 +25,20 @@ projects: []
 <div id="introduction" class="section level2">
 <h2>1. Introduction</h2>
 <p>I have a rap-enthusiast friend whom I have known for a long time. We became friends when we were still in kindergarten. Now he’s operating his own vintage outfit store. Every single time I visit him, he will definitely play some old school rap music in his store. Under his influence, I have get myself familiar with the names of those OG rappers such as Biggie, Tupac, and NWA.</p>
-<p>Gradually, I notice that he seldom plays the “new” rap songs such as mumble-rap and trap. One time I asked him why so, and he said “I just love the old school rap. They are much realer if you know what I mean.” Well, to be honest, I don’t, and that’s exactly why I’m writing this post to analyze the rap musics of different time. Hopefully, I can find out the golden age of rap music.</p>
+<p>Gradually, I notice that he seldom plays the “new style” rap songs such as mumble-rap and trap. One time I asked him why so, and he said “I just love the old school rap. They are much realer if you know what I mean.” Well, to be honest, I don’t, and that’s exactly why I’m writing this post to analyze the rap musics of different time. Hopefully, I can find out the golden age of rap music.</p>
 </div>
 <div id="data-analysis-and-visualization" class="section level2">
 <h2>2. Data analysis and visualization</h2>
+<div id="analysis-on-the-poll-datatset" class="section level3">
+<h3>2.1 Analysis on the poll datatset</h3>
 <pre class="r"><code>library(tidyverse)
 library(hrbrthemes)
 library(gganimate)
 library(plotly)
 polls &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/polls.csv&#39;)
 rankings &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/rankings.csv&#39;)</code></pre>
-<p>After importing the data, we first focus on the poll data since its sample size is larger. With the poll data, because the only variable that reflects the quality of these songs is <code>rank</code>, we will calculate the average rank of the nominated songs for each year to show how the quality varies across time.</p>
-<p>Based on this graph and the help of the regression line, we see that the trend for the average numerical value of the ranking is actually increasing over time. That is to say, the quality, on the contrary, is decreasing.</p>
+<p>After importing the data, we first focus on the poll data since its sample size is larger. With the poll data, because the only variable that reflects the quality of these songs is <code>rank</code>, we will calculate the average ranking of the nominated songs for each year to show how the quality varies across time.</p>
+<p>Based on this graph and the help of the regression line, we see that the trend for the average numerical value of the ranking is actually <strong>increasing over time</strong>. That is to say, the quality, on the contrary, is <strong>decreasing</strong>. In particular, there are three years that have record high rankings of all time in the 80s. In this way, we can infer that <strong>the golden age of rap music could be the 80s</strong>.</p>
 <pre class="r"><code>polls%&gt;%
   group_by(year)%&gt;%
   summarise(av_rank = mean(rank))%&gt;%
@@ -54,6 +56,7 @@ which means the quality of the rap musics decreases over time.&quot;
 <pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
 <pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
 <p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>Then we take a look at how the rating changes for both genders. First thing we notice is that there are more points for songs that are created by male rappers and female rappers, which means songs created by male rappers are more likely to get nominated. In addition, the numerical values of average ranking of songs created by male rappers are mostly lower than those of female rappers. These two phenomena convey the information that <strong>the rap music industry is dominated by male rappers and the systematic gender gap does exist</strong>.</p>
 <pre class="r"><code>polls%&gt;%
   filter(gender!=&quot;mixed&quot;)%&gt;%
   group_by(year,gender)%&gt;%
@@ -64,7 +67,8 @@ which means the quality of the rap musics decreases over time.&quot;
   labs(x = &quot;Year&quot;,
        y = &quot;Average ranking&quot;,
        title = &quot;How the average ranking changes for different genders?&quot;,
-       color = &quot;&quot;
+       color = &quot;&quot;,
+       subtitle = &quot;From this graph, we see that the rap industry is predominatedly occupied by male rappers.&quot;
        )+
   geom_smooth()+
   facet_wrap(~gender,scales = &quot;free_x&quot;)+
@@ -74,6 +78,7 @@ which means the quality of the rap musics decreases over time.&quot;
 <pre><code>## `summarise()` regrouping output by &#39;year&#39; (override with `.groups` argument)</code></pre>
 <pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
 <p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>The gender gap could be further illustrated by the following graph. Here, we have picked out the top five artists of each gender with the highest number of nominations. Even though Missy Elliott takes the first place of female rappers with her songs nominated by 9 times, she is still <strong>way out-numbered</strong> by the fifth place male rapper OutKast with his songs nominated by 17 times. Not to memtion the fact that Salt-N-Pepa and Cardi B are both nominated only twice.</p>
 <pre class="r"><code>polls%&gt;%
   filter(gender!=&quot;mixed&quot;)%&gt;%
   group_by(gender)%&gt;%
@@ -90,6 +95,7 @@ which means the quality of the rap musics decreases over time.&quot;
   theme_ft_rc()</code></pre>
 <pre><code>## Selecting by n</code></pre>
 <p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>Next, by taking the average ranking of the songs nominated for each artist, we have the following rough list of the top 15 rap artists with best quality of works.</p>
 <pre class="r"><code>library(ggrepel)
 top_artists_ranking&lt;-polls%&gt;%
   add_count(artist)%&gt;%filter(n&gt;7)%&gt;%
@@ -108,11 +114,16 @@ top_artists_ranking&lt;-polls%&gt;%
             color = &quot;white&quot;,
             hjust = -0.1)+ 
   labs(x = &quot;Year&quot;, y = &quot;&quot;,
-       title = &quot;Ranking of artists based on polls&quot;)+ 
+       title = &quot;The greatest 15 rappers of all time&quot;)+ 
   theme_ft_rc()+
   theme(legend.position = &quot;null&quot;)</code></pre>
 <pre><code>## Joining, by = &quot;artist&quot;</code></pre>
 <p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>The top three rap artists are <strong>Public Enemy, The Notorious B.I.G (with no doubt), and Eric B &amp; Rakim</strong>. Since the other rappers on the list are also quite famous, I would assume this ranking is valid. In the graph, I have also annotate the names of songs that are nominated more than 10 times. Thus, based on the poll dataset, the greatest songs are “Fight The Power”, “Juicy”, “Shook Ones (Part II)”, “The Meessage”, “C.R.E.A.M.”, and “Nuthin’ But A ‘G’ Thang”.</p>
+<p>There is another thing in the graph which is worthwhile to point out. Notice the points with large size are clustering in the 1980-1990 time period. This could be seen as another reference to the golden age of rap music.</p>
+</div>
+<div id="analysis-on-the-rankings-datatset" class="section level3">
+<h3>2.2 Analysis on the rankings datatset</h3>
 <pre class="r"><code>rankings%&gt;%
   filter(ID!=70)%&gt;%
   ggplot(aes(x = year, y = points, color = gender))+
@@ -178,4 +189,5 @@ rankings%&gt;%
 <pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
 <pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
 <p><img src="/post/rap-star/index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+</div>
 </div>

@@ -22,9 +22,11 @@ projects: []
 ## 1. Introduction
 I have a rap-enthusiast friend whom I have known for a long time. We became friends when we were still in kindergarten. Now he's operating his own vintage outfit store. Every single time I visit him, he will definitely play some old school rap music in his store. Under his influence, I have get myself familiar with the names of those OG rappers such as Biggie, Tupac, and NWA. 
 
-Gradually, I notice that he seldom plays the "new" rap songs such as mumble-rap and trap. One time I asked him why so, and he said "I just love the old school rap. They are much realer if you know what I mean." Well, to be honest, I don't, and that's exactly why I'm writing this post to analyze the rap musics of different time. Hopefully, I can find out the golden age of rap music.
+Gradually, I notice that he seldom plays the "new style" rap songs such as mumble-rap and trap. One time I asked him why so, and he said "I just love the old school rap. They are much realer if you know what I mean." Well, to be honest, I don't, and that's exactly why I'm writing this post to analyze the rap musics of different time. Hopefully, I can find out the golden age of rap music.
 
 ## 2. Data analysis and visualization
+
+### 2.1 Analysis on the poll datatset
 
 ```{r,message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -35,9 +37,9 @@ polls <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidy
 rankings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-14/rankings.csv')
 ```
 
-After importing the data, we first focus on the poll data since its sample size is larger. With the poll data, because the only variable that reflects the quality of these songs is `rank`, we will calculate the average rank of the nominated songs for each year to show how the quality varies across time. 
+After importing the data, we first focus on the poll data since its sample size is larger. With the poll data, because the only variable that reflects the quality of these songs is `rank`, we will calculate the average ranking of the nominated songs for each year to show how the quality varies across time. 
 
-Based on this graph and the help of the regression line, we see that the trend for the average numerical value of the ranking is actually increasing over time. That is to say, the quality, on the contrary, is decreasing. 
+Based on this graph and the help of the regression line, we see that the trend for the average numerical value of the ranking is actually **increasing over time**. That is to say, the quality, on the contrary, is **decreasing**. In particular, there are three years that have record high rankings of all time in the 80s. In this way, we can infer that **the golden age of rap music could be the 80s**.  
 ```{r}
 polls%>%
   group_by(year)%>%
@@ -55,6 +57,8 @@ which means the quality of the rap musics decreases over time."
   theme_ft_rc()
 ```
 
+Then we take a look at how the rating changes for both genders. First thing we notice is that there are more points for songs that are created by male rappers and female rappers, which means songs created by male rappers are more likely to get nominated. In addition, the numerical values of average ranking of songs created by male rappers are mostly lower than those of female rappers. These two phenomena convey the information that **the rap music industry is dominated by male rappers and the systematic gender gap does exist**. 
+
 ```{r}
 polls%>%
   filter(gender!="mixed")%>%
@@ -66,7 +70,8 @@ polls%>%
   labs(x = "Year",
        y = "Average ranking",
        title = "How the average ranking changes for different genders?",
-       color = ""
+       color = "",
+       subtitle = "From this graph, we see that the rap industry is predominatedly occupied by male rappers."
        )+
   geom_smooth()+
   facet_wrap(~gender,scales = "free_x")+
@@ -75,6 +80,7 @@ polls%>%
   theme(legend.position = "null")
 ```
 
+The gender gap could be further illustrated by the following graph. Here, we have picked out the top five artists of each gender with the highest number of nominations. Even though Missy Elliott takes the first place of female rappers with her songs nominated by 9 times,  she is still **way out-numbered** by the fifth place male rapper OutKast with his songs nominated by 17 times. Not to memtion the fact that Salt-N-Pepa and Cardi B are both nominated only twice. 
 
 ```{r}
 polls%>%
@@ -93,7 +99,7 @@ polls%>%
   theme_ft_rc()
 ```
 
-
+Next, by taking the average ranking of the songs nominated for each artist, we have the following rough list of the top 15 rap artists with best quality of works. 
 ```{r}
 library(ggrepel)
 top_artists_ranking<-polls%>%
@@ -113,11 +119,16 @@ polls%>%
             color = "white",
             hjust = -0.1)+ 
   labs(x = "Year", y = "",
-       title = "Ranking of artists based on polls")+ 
+       title = "The greatest 15 rappers of all time")+ 
   theme_ft_rc()+
   theme(legend.position = "null")
 ```
 
+The top three rap artists are **Public Enemy, The Notorious B.I.G (with no doubt), and Eric B & Rakim**. Since the other rappers on the list are also quite famous, I would assume this ranking is valid. In the graph, I have also annotate the names of songs that are nominated more than 10 times. Thus, based on the poll dataset, the greatest songs are "Fight The Power", "Juicy", "Shook Ones (Part II)", "The Meessage", "C.R.E.A.M.", and "Nuthin' But A 'G' Thang". 
+
+There is another thing in the graph which is worthwhile to point out. Notice the points with large size are clustering in the 1980-1990 time period. This could be seen as another reference to the golden age of rap music. 
+
+### 2.2 Analysis on the rankings datatset
 
 
 
