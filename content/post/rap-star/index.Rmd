@@ -130,8 +130,6 @@ There is another thing in the graph which is worthwhile to point out. Notice the
 
 ### 2.2 Analysis on the rankings datatset
 
-
-
 ```{r}
 rankings%>%
   filter(ID!=70)%>%
