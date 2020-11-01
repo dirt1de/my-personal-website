@@ -21,6 +21,15 @@ projects: []
 
 
 
+<div id="introduction" class="section level1">
+<h1>1. Introduction</h1>
+<p>For this post, we will use the data about the Great American Beer Festival. Specifically, three kinds of visualization would be created to reveal the geological information in this data.</p>
+</div>
+<div id="visualization" class="section level1">
+<h1>2. Visualization</h1>
+<div id="racing-bar-plot" class="section level2">
+<h2>2.1 Racing Bar Plot</h2>
+<p>In this section, the racing bar plot is created. Based on this graphic, you will be able to know what are the top 10 states that received the most number of awards in each year from 1987 to 2020.</p>
 <pre class="r"><code>library(tidyverse)
 library(viridis)
 library(tidytext)
@@ -75,6 +84,10 @@ p&lt;-beer_awards1%&gt;%
 
 animate(p, width = 550, height = 500, fps = 25, duration = 15, rewind = FALSE)</code></pre>
 <p><img src="/post/usa-beer-festival/index_files/figure-html/unnamed-chunk-2-1.gif" /><!-- --></p>
+</div>
+<div id="animated-map-of-the-us" class="section level2">
+<h2>2.2 Animated Map of the US</h2>
+<p>To show how the total number of awards changes national-wide, we create the following animated map. In this way, instead of focusing on the top states, we can also know how other states performs in each year.</p>
 <pre class="r"><code>beer_awards2&lt;-beer_awards
 
 state_full&lt;-data.frame(state.abb,state.name)
@@ -120,8 +133,12 @@ p3&lt;-beer_awards2%&gt;%left_join(state)%&gt;%
 <pre class="r"><code>animate(p3,fps=3)</code></pre>
 <pre><code>## nframes and fps adjusted to match transition</code></pre>
 <p><img src="/post/usa-beer-festival/index_files/figure-html/unnamed-chunk-3-1.gif" /><!-- --></p>
+</div>
+<div id="geofacet-graph" class="section level2">
+<h2>2.3 Geofacet graph</h2>
+<p>From the first and second graph, we only get to know the how total number of awards changes over time. As a result, to make the graph more informative, we use the geofacet graph so that we can show the total number of golden, silver, and bronze medals received by each state.</p>
 <pre class="r"><code>beer_awards3&lt;-beer_awards</code></pre>
-<pre class="r"><code>state_full&lt;-data.frame(state.abb,state.name)
+<pre><code>state_full&lt;-data.frame(state.abb,state.name)
 
 
 beer_awards3&lt;-beer_awards3%&gt;%
@@ -157,4 +174,6 @@ beer_awards3%&gt;%
     axis.ticks = element_blank(),
     panel.background = element_rect(fill = &quot;white&quot;)
   )</code></pre>
-<p><img src="/post/usa-beer-festival/index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p><img src="/media/beer.png" /></p>
+</div>
+</div>

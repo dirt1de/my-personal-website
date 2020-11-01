@@ -18,6 +18,15 @@ image:
   preview_only: no
 projects: []
 ---
+# 1. Introduction
+
+For this post, we will use the data about the Great American Beer Festival. Specifically, three kinds of visualization would be created to reveal the geological information in this data.
+
+# 2. Visualization
+
+## 2.1 Racing Bar Plot
+
+In this section, the racing bar plot is created. Based on this graphic, you will be able to know what are the top 10 states that received the most number of awards in each year from 1987 to 2020. 
 
 ```{r,warning=FALSE, message=FALSE}
 library(tidyverse)
@@ -81,7 +90,9 @@ animate(p, width = 550, height = 500, fps = 25, duration = 15, rewind = FALSE)
 
 
 
+## 2.2 Animated Map of the US
 
+To show how the total number of awards changes national-wide, we create the following animated map. In this way, instead of focusing on the top states, we can also know how other states performs in each year.  
 
 ```{r}
 
@@ -134,7 +145,9 @@ animate(p3,fps=3)
 ```
 
 
+## 2.3 Geofacet graph
 
+From the first and second graph, we only get to know the how total number of awards changes over time. As a result, to make the graph more informative, we use the geofacet graph so that we can show the total number of golden, silver, and bronze medals received by each state.
 
 ```{r}
 
@@ -142,7 +155,7 @@ beer_awards3<-beer_awards
 ```
 
 
-```{r}
+```{}
 state_full<-data.frame(state.abb,state.name)
 
 
@@ -181,7 +194,7 @@ beer_awards3%>%
   )
 ```
 
-
+![](/media/beer.png)
 
 
 
