@@ -1,0 +1,188 @@
+---
+title: Visualization on Great American Beer Festival
+author: Xuxin Zhang
+date: '2020-11-01'
+slug: visualization-on-great-american-beer-festival
+categories:
+  - R project
+tags:
+  - data visualization
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-11-01T12:04:53+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+```{r,warning=FALSE, message=FALSE}
+library(tidyverse)
+library(viridis)
+library(tidytext)
+library(plotly)
+library(hrbrthemes)
+library(gganimate)
+library(viridis)
+library(geofacet)
+library(scales)
+beer_awards <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-10-20/beer_awards.csv')
+
+beer_awards1<-beer_awards
+theme_set(theme_light())
+```
+
+```{r}
+state_full<-data.frame(state.abb,state.name)
+
+p<-beer_awards1%>%
+  full_join(state_full, by = c("state" = "state.abb"))%>%
+  count(state.name, year)%>%
+  group_by(state.name)%>%
+  mutate(csum = cumsum(n))%>%
+  ungroup()%>%
+  filter(!is.na(year))%>%
+  group_by(year)%>%
+  arrange(year, -csum)%>%
+  mutate(rank = 1:n())%>%
+  filter(rank<=10)%>%
+  mutate(csum = as.integer(csum))%>%
+  ggplot(aes(x = rank, y = csum, fill = state.name))+
+  geom_col(show.legend = FALSE, alpha = 0.7) +
+  geom_text(aes(label = csum),  hjust=-0.1, family = "Times")+
+  geom_text(x = -9, y = 800, aes(label = as.factor(year)), 
+            size = 16,
+            color = "grey18", family = "Times")+
+  geom_text(aes(label = state.name),   y =0, hjust = 1.25, family = "Times")+
+  coord_flip(clip = "off", expand = TRUE) +
+  scale_x_reverse()+
+  ylim(-100,1200)+
+  labs(title = "How you brewing?",
+       subtitle = "This is a racing bar plot illustrating how the total number of awards received by each state chagnes\n from 1987 to 2020. In particular, California has been taking the first place for almost 20 years.")+ 
+  theme_ipsum()+
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(),
+        plot.title = element_text(size = 15, face = "bold", family = "Times"),
+        plot.subtitle =  element_text(size = 12, family = "Times"))+
+  transition_states(as.factor(year),transition_length = 4, state_length = 2)+
+  enter_fade() +
+  exit_fade() + 
+  ease_aes('quadratic-in-out') 
+
+animate(p, width = 550, height = 500, fps = 25, duration = 15, rewind = FALSE)
+
+```
+
+
+
+
+
+```{r}
+
+beer_awards2<-beer_awards
+
+state_full<-data.frame(state.abb,state.name)
+
+
+beer_awards2<-beer_awards2%>%
+  full_join(state_full, by = c("state" = "state.abb"))%>%
+  count(state.name, year)%>%
+  pivot_wider(names_from = year, values_from = n, values_fill = 0)%>%
+  select(-"NA")%>%
+  pivot_longer(2:35,names_to = "year",values_to = "n")%>%
+  mutate(year = as.numeric(year),
+         state.name = tolower(state.name))%>%
+  group_by(state.name)%>%
+  arrange(year)%>%
+  group_by(state.name)%>%
+  mutate(csum = cumsum(n))%>%
+  ungroup()%>%
+  filter(!is.na(year))
+
+names(beer_awards2)[1]<-"region"
+
+
+state<-map_data("state")
+
+
+p3<-beer_awards2%>%left_join(state)%>%
+  ggplot(aes(x = long, y = lat, group = group, fill = csum))+
+  geom_polygon()+
+  transition_manual(year) +
+  ggtitle("The total number of awards received by each state in: {current_frame}")+
+  scale_fill_viridis()+
+  theme(
+    plot.title = element_text(size = 15, face = "bold", family = "Times"),
+    legend.position = "bottom",
+    panel.border = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_blank()
+  )
+
+
+animate(p3,fps=3)
+
+
+```
+
+
+
+
+```{r}
+
+beer_awards3<-beer_awards
+```
+
+
+```{r}
+state_full<-data.frame(state.abb,state.name)
+
+
+beer_awards3<-beer_awards3%>%
+  full_join(state_full, by = c("state" = "state.abb"))%>%
+  count(state.name,medal)%>%
+  mutate(medal = factor(medal, levels = c("Bronze","Silver","Gold")))
+
+beer_awards3[142:144,1]<-"District of Columbia"
+
+beer_awards3[135,2]<-"Gold"
+
+beer_awards3%>%
+  ggplot(aes(x = n, y = medal, fill = medal))+
+  geom_col()+
+  scale_fill_manual(values = c("#cd7f32","azure3", "gold"))+
+  geom_text(aes(label = n), hjust = 1)+
+  facet_geo(~state.name, grid = "us_state_grid2",scales = "free_x")+
+  labs(x = "",
+       y = "",
+       title = "The total number of awards received by each state for their beer production",
+       subtitle = "This graph summarises how many golden, silver, and bronze medals each state in USA has received from 1987 to 2020 for their beer production.\n The top 4 states with most number of total awards are California, Colorado, Oregon, and Texas.Based on this ranking,\n we may infer that the west  part of United States may gain certain geological advantages in beer production.",
+       caption = "Produced by Xuxin Zhang(@xux1an)")+
+  theme(
+    plot.title = element_text(family = "Times", size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(family = "Times", size = 12, hjust = 0.5),
+    legend.position = "bottom",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(color = "black",family = "Times",face ="bold", size = 10),
+    axis.text.y = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_rect(fill = "white")
+  )
+```
+
+
+
+
+
+

@@ -1,0 +1,160 @@
+---
+title: Visualization on Great American Beer Festival
+author: Xuxin Zhang
+date: '2020-11-01'
+slug: visualization-on-great-american-beer-festival
+categories:
+  - R project
+tags:
+  - data visualization
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-11-01T12:04:53+08:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+
+
+<pre class="r"><code>library(tidyverse)
+library(viridis)
+library(tidytext)
+library(plotly)
+library(hrbrthemes)
+library(gganimate)
+library(viridis)
+library(geofacet)
+library(scales)
+beer_awards &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-10-20/beer_awards.csv&#39;)
+
+beer_awards1&lt;-beer_awards
+theme_set(theme_light())</code></pre>
+<pre class="r"><code>state_full&lt;-data.frame(state.abb,state.name)
+
+p&lt;-beer_awards1%&gt;%
+  full_join(state_full, by = c(&quot;state&quot; = &quot;state.abb&quot;))%&gt;%
+  count(state.name, year)%&gt;%
+  group_by(state.name)%&gt;%
+  mutate(csum = cumsum(n))%&gt;%
+  ungroup()%&gt;%
+  filter(!is.na(year))%&gt;%
+  group_by(year)%&gt;%
+  arrange(year, -csum)%&gt;%
+  mutate(rank = 1:n())%&gt;%
+  filter(rank&lt;=10)%&gt;%
+  mutate(csum = as.integer(csum))%&gt;%
+  ggplot(aes(x = rank, y = csum, fill = state.name))+
+  geom_col(show.legend = FALSE, alpha = 0.7) +
+  geom_text(aes(label = csum),  hjust=-0.1, family = &quot;Times&quot;)+
+  geom_text(x = -9, y = 800, aes(label = as.factor(year)), 
+            size = 16,
+            color = &quot;grey18&quot;, family = &quot;Times&quot;)+
+  geom_text(aes(label = state.name),   y =0, hjust = 1.25, family = &quot;Times&quot;)+
+  coord_flip(clip = &quot;off&quot;, expand = TRUE) +
+  scale_x_reverse()+
+  ylim(-100,1200)+
+  labs(title = &quot;How you brewing?&quot;,
+       subtitle = &quot;This is a racing bar plot illustrating how the total number of awards received by each state chagnes\n from 1987 to 2020. In particular, California has been taking the first place for almost 20 years.&quot;)+ 
+  theme_ipsum()+
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(),
+        plot.title = element_text(size = 15, face = &quot;bold&quot;, family = &quot;Times&quot;),
+        plot.subtitle =  element_text(size = 12, family = &quot;Times&quot;))+
+  transition_states(as.factor(year),transition_length = 4, state_length = 2)+
+  enter_fade() +
+  exit_fade() + 
+  ease_aes(&#39;quadratic-in-out&#39;) 
+
+animate(p, width = 550, height = 500, fps = 25, duration = 15, rewind = FALSE)</code></pre>
+<p><img src="/post/usa-beer-festival/index_files/figure-html/unnamed-chunk-2-1.gif" /><!-- --></p>
+<pre class="r"><code>beer_awards2&lt;-beer_awards
+
+state_full&lt;-data.frame(state.abb,state.name)
+
+
+beer_awards2&lt;-beer_awards2%&gt;%
+  full_join(state_full, by = c(&quot;state&quot; = &quot;state.abb&quot;))%&gt;%
+  count(state.name, year)%&gt;%
+  pivot_wider(names_from = year, values_from = n, values_fill = 0)%&gt;%
+  select(-&quot;NA&quot;)%&gt;%
+  pivot_longer(2:35,names_to = &quot;year&quot;,values_to = &quot;n&quot;)%&gt;%
+  mutate(year = as.numeric(year),
+         state.name = tolower(state.name))%&gt;%
+  group_by(state.name)%&gt;%
+  arrange(year)%&gt;%
+  group_by(state.name)%&gt;%
+  mutate(csum = cumsum(n))%&gt;%
+  ungroup()%&gt;%
+  filter(!is.na(year))
+
+names(beer_awards2)[1]&lt;-&quot;region&quot;
+
+
+state&lt;-map_data(&quot;state&quot;)
+
+
+p3&lt;-beer_awards2%&gt;%left_join(state)%&gt;%
+  ggplot(aes(x = long, y = lat, group = group, fill = csum))+
+  geom_polygon()+
+  transition_manual(year) +
+  ggtitle(&quot;The total number of awards received by each state in: {current_frame}&quot;)+
+  scale_fill_viridis()+
+  theme(
+    plot.title = element_text(size = 15, face = &quot;bold&quot;, family = &quot;Times&quot;),
+    legend.position = &quot;bottom&quot;,
+    panel.border = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_blank()
+  )</code></pre>
+<pre><code>## Joining, by = &quot;region&quot;</code></pre>
+<pre class="r"><code>animate(p3,fps=3)</code></pre>
+<pre><code>## nframes and fps adjusted to match transition</code></pre>
+<p><img src="/post/usa-beer-festival/index_files/figure-html/unnamed-chunk-3-1.gif" /><!-- --></p>
+<pre class="r"><code>beer_awards3&lt;-beer_awards</code></pre>
+<pre class="r"><code>state_full&lt;-data.frame(state.abb,state.name)
+
+
+beer_awards3&lt;-beer_awards3%&gt;%
+  full_join(state_full, by = c(&quot;state&quot; = &quot;state.abb&quot;))%&gt;%
+  count(state.name,medal)%&gt;%
+  mutate(medal = factor(medal, levels = c(&quot;Bronze&quot;,&quot;Silver&quot;,&quot;Gold&quot;)))
+
+beer_awards3[142:144,1]&lt;-&quot;District of Columbia&quot;
+
+beer_awards3[135,2]&lt;-&quot;Gold&quot;
+
+beer_awards3%&gt;%
+  ggplot(aes(x = n, y = medal, fill = medal))+
+  geom_col()+
+  scale_fill_manual(values = c(&quot;#cd7f32&quot;,&quot;azure3&quot;, &quot;gold&quot;))+
+  geom_text(aes(label = n), hjust = 1)+
+  facet_geo(~state.name, grid = &quot;us_state_grid2&quot;,scales = &quot;free_x&quot;)+
+  labs(x = &quot;&quot;,
+       y = &quot;&quot;,
+       title = &quot;The total number of awards received by each state for their beer production&quot;,
+       subtitle = &quot;This graph summarises how many golden, silver, and bronze medals each state in USA has received from 1987 to 2020 for their beer production.\n The top 4 states with most number of total awards are California, Colorado, Oregon, and Texas.Based on this ranking,\n we may infer that the west  part of United States may gain certain geological advantages in beer production.&quot;,
+       caption = &quot;Produced by Xuxin Zhang(@xux1an)&quot;)+
+  theme(
+    plot.title = element_text(family = &quot;Times&quot;, size = 16, face = &quot;bold&quot;, hjust = 0.5),
+    plot.subtitle = element_text(family = &quot;Times&quot;, size = 12, hjust = 0.5),
+    legend.position = &quot;bottom&quot;,
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(fill = &quot;white&quot;),
+    strip.text = element_text(color = &quot;black&quot;,family = &quot;Times&quot;,face =&quot;bold&quot;, size = 10),
+    axis.text.y = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_rect(fill = &quot;white&quot;)
+  )</code></pre>
+<p><img src="/post/usa-beer-festival/index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
