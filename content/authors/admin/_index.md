@@ -30,7 +30,7 @@ social:
   link: mailto:1anxuxianzhang@gmail.com
 - icon: twitter
   icon_pack: fab
-  link: https://twitter.com/XuxinZhang1
+  link: https://twitter.com/xux1an
 - icon: google-scholar
   icon_pack: ai
   link: 
